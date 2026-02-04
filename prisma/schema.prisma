@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SALES_REP
+  SALES_MANAGER
+  LEGAL
+  REVOPS
+  ADMIN
+  AUDITOR
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(SALES_REP)
+  proposals Proposal[]
+  auditLogs AuditLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Proposal {
+  id             String      @id @default(cuid())
+  title          String
+  version        Int         @default(1)
+  content        String      // Extracted text content
+  fileUrl        String?     // Link to original file
+  status         String      @default("PENDING") // PENDING, REVIEWED, APPROVED, REJECTED
+  metadata       Json        // Deal ID, Client, Industry, etc.
+  lockedSections Json        // List of IDs or section names that cannot be changed
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  riskReports    RiskReport[]
+  auditLogs      AuditLog[]
+  parentId       String?     // Reference to original if this is an amendment
+  parent         Proposal?   @relation("ProposalVersions", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  amendments     Proposal[]  @relation("ProposalVersions")
+  
+  // Contract Management Fields
+  contractStartDate  DateTime?
+  contractEndDate    DateTime?
+  renewalDate        DateTime?
+  autoRenew          Boolean  @default(false)
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // SALES_PROPOSAL, MSA, SOW, NDA
+  content     String   // Pre-filled template text
+  metadata    Json     // Default values (dealSize, discount, etc.)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Integration {
+  id            String   @id @default(cuid())
+  type          String   // SALESFORCE, HUBSPOT, GMAIL, GOOGLE_DRIVE, DOCUSIGN, SHAREPOINT
+  name          String
+  credentials   Json     // Encrypted OAuth tokens
+  config        Json     // Sync settings, mappings
+  isActive      Boolean  @default(true)
+  lastSyncAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  syncLogs      SyncLog[]
+}
+
+model SyncLog {
+  id            String      @id @default(cuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id])
+  action        String      // IMPORT, EXPORT, SYNC
+  status        String      // SUCCESS, FAILED, PARTIAL
+  recordsAffected Int       @default(0)
+  details       Json
+  createdAt     DateTime    @default(now())
+}
+
+model Rule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // PRICING, LEGAL, STRUCTURAL
+  logic       Json     // JSON-based deterministic logic
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LegalClause {
+  id          String   @id @default(cuid())
+  identifier  String   @unique // Internal ID for the clause
+  name        String
+  text        String
+  isMandatory Boolean  @default(false)
+  region      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RiskReport {
+  id              String   @id @default(cuid())
+  proposalId      String
+  proposal        Proposal @relation(fields: [proposalId], references: [id])
+  readinessScore  Int
+  legalRisk       Float
+  pricingRisk     Float
+  structuralRisk  Float
+  findings        Json     // List of specific risks found
+  recommendations Json     // List of AI suggestions
+  createdAt       DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  proposalId String?
+  proposal   Proposal? @relation(fields: [proposalId], references: [id])
+  action     String
+  before     Json?
+  after      Json?
+  timestamp  DateTime @default(now())
+}

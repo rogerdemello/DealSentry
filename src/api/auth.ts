@@ -1,0 +1,177 @@
+import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { supabase } from '../lib/supabase';
+
+const router = Router();
+
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
+
+// POST login
+router.post('/login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // In a real app, you'd verify the password hash
+    // For demo purposes, we'll just find the user by email
+    const { data: user, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const companyId = (user as { company_id?: string }).company_id ?? null;
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, companyId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyId,
+      },
+    });
+  } catch (error) {
+    console.error('Error during login:', error);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// POST register
+router.post('/register', async (req: Request, res: Response) => {
+  try {
+    const { email, name, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Check if user already exists
+    const { data: existing } = await supabase
+      .from('User')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existing) {
+      return res.status(409).json({ error: 'User already exists' });
+    }
+
+    // In a real app, hash the password with bcrypt
+    // const hashedPassword = await bcrypt.hash(password, 10);
+
+    const companyId = (req.body.companyId as string) || null;
+
+    const insertPayload: Record<string, unknown> = {
+      id: crypto.randomUUID(),
+      email,
+      name: name || null,
+      role: 'SALES_REP',
+      updatedAt: new Date().toISOString(),
+    };
+    if (companyId) insertPayload.company_id = companyId;
+
+    const { data: user, error } = await supabase
+      .from('User')
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const userCompanyId = (user as { company_id?: string }).company_id ?? null;
+
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role, companyId: userCompanyId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyId: userCompanyId,
+      },
+    });
+  } catch (error) {
+    console.error('Error during registration:', error);
+    res.status(500).json({ error: 'Failed to register' });
+  }
+});
+
+// GET verify token
+router.get('/verify', async (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    const { data: user, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('id', decoded.userId)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const companyId = (user as { company_id?: string }).company_id ?? null;
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyId,
+      },
+    });
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// Middleware to protect routes
+export const authMiddleware = async (req: Request, res: Response, next: Function) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    (req as any).user = decoded;
+    
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+export default router;
