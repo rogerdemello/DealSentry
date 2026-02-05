@@ -5,6 +5,7 @@ import { Proposal } from "@/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +24,11 @@ import { useState } from "react";
 interface ProposalCardProps {
   proposal: Proposal;
   index?: number;
+  isSelected?: boolean;
+  onSelect?: (checked: boolean) => void;
 }
 
-export function ProposalCard({ proposal, index = 0 }: ProposalCardProps) {
+export function ProposalCard({ proposal, index = 0, isSelected = false, onSelect }: ProposalCardProps) {
   const { deleteProposal } = useProposals();
   const [isDeleting, setIsDeleting] = useState(false);
   
@@ -40,9 +43,20 @@ export function ProposalCard({ proposal, index = 0 }: ProposalCardProps) {
   };
 
   return (
-    <div className="glass-panel group">
+    <div className="glass-panel group relative">
+      {/* Checkbox */}
+      {onSelect && (
+        <div className="absolute top-4 left-4 z-10">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onSelect}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+      
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className={`flex items-center justify-between mb-4 ${onSelect ? 'ml-8' : ''}`}>
         <StatusBadge status={proposal.status} />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar className="w-3.5 h-3.5" />

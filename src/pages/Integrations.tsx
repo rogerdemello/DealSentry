@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { mockIntegrations } from "@/data/mockData";
 import { Integration } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useProposals } from "@/context/ProposalContext";
 import { formatDistanceToNow } from "date-fns";
 
 const integrationConfig = {
@@ -41,6 +42,7 @@ const saveIntegrationStatus = (status: Record<string, boolean>) => {
 
 export default function Integrations() {
   const { toast } = useToast();
+  const { refreshProposals } = useProposals();
   const [integrations, setIntegrations] = useState<Integration[]>(() => {
     // Start with mock data for immediate render; real data will replace it after fetch
     // Don't use localStorage here - wait for database fetch to determine actual status
@@ -335,6 +337,11 @@ export default function Integrations() {
         title: "Sync complete",
         description: result.message || `${integration.name} data has been synchronized`,
       });
+      
+      // Refresh proposals to show newly synced data
+      if (result.recordsAffected > 0) {
+        await refreshProposals();
+      }
       
       // If HubSpot sync was successful, suggest checking proposals
       if (integration.type === 'HUBSPOT' && result.recordsAffected > 0) {

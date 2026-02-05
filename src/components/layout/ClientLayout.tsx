@@ -12,7 +12,8 @@ import {
   Sparkles,
   User,
   Crown,
-  Home as HomeIcon
+  Home as HomeIcon,
+  Settings as SettingsIcon
 } from "lucide-react";
 import { isAuthenticated, getCurrentUser, clearAuthData } from "@/lib/auth-utils";
 
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { href: "/proposals", label: "Proposals", icon: FileText },
   { href: "/compliance", label: "Compliance", icon: Shield },
   { href: "/integrations", label: "Integrations", icon: Link2 },
+  { href: "/settings", label: "Settings", icon: SettingsIcon },
   { href: "/audit", label: "Audit", icon: ClipboardList, adminOnly: true },
 ];
 

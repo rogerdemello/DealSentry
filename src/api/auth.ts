@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { supabase } from '../lib/supabase';
+import { requireAuth } from './middleware/auth';
 
 const router = Router();
 
@@ -172,6 +173,61 @@ router.get('/verify', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error verifying token:', error);
     res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// POST change password
+router.post('/change-password', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = (req as any).user.userId;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+    }
+
+    // Get user
+    const { data: user, error: userError } = await supabase
+      .from('User')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    if (!user.password) {
+      return res.status(400).json({ error: 'No password set' });
+    }
+
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update password
+    const { error: updateError } = await supabase
+      .from('User')
+      .update({ password: hashedPassword, updatedAt: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

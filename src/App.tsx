@@ -16,6 +16,7 @@ import CreateProposal from "@/pages/CreateProposal";
 import ProposalReview from "@/pages/ProposalReview";
 import Compliance from "@/pages/Compliance";
 import Integrations from "@/pages/Integrations";
+import Settings from "@/pages/Settings";
 import Audit from "@/pages/Audit";
 import NotFound from "@/pages/NotFound";
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/proposals/:id" element={<ProtectedRoute><ProposalReview /></ProtectedRoute>} />
               <Route path="/compliance" element={<ProtectedRoute><Compliance /></ProtectedRoute>} />
               <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, SlidersHorizontal, FileText, Upload } from "lucide-react";
+import { Plus, Search, Filter, SlidersHorizontal, FileText, Upload, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -14,15 +15,20 @@ import {
 import { ProposalCard } from "@/components/proposals/ProposalCard";
 import { useProposals } from "@/context/ProposalContext";
 import { ProposalStatus } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { proposalsApi } from "@/lib/api-client";
 
 type SortOption = "date" | "score" | "title";
 type StatusFilter = "ALL" | ProposalStatus;
 
 export default function Proposals() {
-  const { proposals } = useProposals();
+  const { proposals, refreshProposals } = useProposals();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("date");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredProposals = useMemo(() => {
     let result = [...proposals];
@@ -69,6 +75,63 @@ export default function Proposals() {
 
     return result;
   }, [proposals, searchQuery, statusFilter, sortBy]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredProposals.map(p => p.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectProposal = (proposalId: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(proposalId);
+    } else {
+      newSelected.delete(proposalId);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to delete ${selectedIds.size} proposal${selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+
+    try {
+      const deletePromises = Array.from(selectedIds).map(id => 
+        proposalsApi.delete(id)
+      );
+
+      await Promise.all(deletePromises);
+
+      toast({
+        title: "Proposals deleted",
+        description: `Successfully deleted ${selectedIds.size} proposal${selectedIds.size > 1 ? 's' : ''}`,
+      });
+
+      setSelectedIds(new Set());
+      await refreshProposals();
+    } catch (error: any) {
+      toast({
+        title: "Failed to delete proposals",
+        description: error?.message || "An error occurred while deleting",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const allSelected = filteredProposals.length > 0 && selectedIds.size === filteredProposals.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < filteredProposals.length;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -134,6 +197,32 @@ export default function Proposals() {
         className="glass-panel mb-6 p-4"
       >
         <div className="flex flex-col md:flex-row gap-3">
+          {/* Select All Checkbox */}
+          {filteredProposals.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md border">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={handleSelectAll}
+                className={someSelected ? "data-[state=checked]:bg-primary/50" : ""}
+              />
+              <label className="text-sm font-medium cursor-pointer select-none" onClick={() => handleSelectAll(!allSelected)}>
+                Select All ({selectedIds.size})
+              </label>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="ml-2"
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" />
+                  Delete ({selectedIds.size})
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -219,7 +308,11 @@ export default function Proposals() {
           >
             {filteredProposals.map((proposal) => (
               <motion.div key={proposal.id} variants={itemVariants}>
-                <ProposalCard proposal={proposal} />
+                <ProposalCard 
+                  proposal={proposal}
+                  isSelected={selectedIds.has(proposal.id)}
+                  onSelect={(checked) => handleSelectProposal(proposal.id, checked)}
+                />
               </motion.div>
             ))}
           </motion.div>

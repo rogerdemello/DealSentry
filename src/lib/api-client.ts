@@ -229,6 +229,11 @@ export const authApi = {
       body: JSON.stringify({ email, password, name }),
     }),
   verify: () => apiCall<{ user: User }>('/api/auth/verify'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiCall<{ message: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };
 
 // Integrations API
