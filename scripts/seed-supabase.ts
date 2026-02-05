@@ -35,33 +35,40 @@ async function seed() {
       adminUser = existingAdmin;
     }
 
-    const { data: existingDemo } = await supabase
-      .from('User')
-      .select('id')
-      .eq('email', 'demo@reviewer.ai')
-      .single();
+    // Create 5 test users
+    const testUsers = [
+      { email: 'test1@reviewer.ai', name: 'Test User 1' },
+      { email: 'test2@reviewer.ai', name: 'Test User 2' },
+      { email: 'test3@reviewer.ai', name: 'Test User 3' },
+      { email: 'test4@reviewer.ai', name: 'Test User 4' },
+      { email: 'test5@reviewer.ai', name: 'Test User 5' },
+    ];
 
-    let demoUser;
-    if (!existingDemo) {
-      const { data, error } = await supabase
+    for (const testUser of testUsers) {
+      const { data: existing } = await supabase
         .from('User')
-        .insert({
-          id: randomUUID(),
-          email: 'demo@reviewer.ai',
-          name: 'Demo Sales Rep',
-          role: 'SALES_REP',
-          updatedAt: new Date().toISOString(),
-        })
-        .select()
+        .select('id')
+        .eq('email', testUser.email)
         .single();
-      
-      if (error) throw error;
-      demoUser = data;
-    } else {
-      demoUser = existingDemo;
+
+      if (!existing) {
+        const { error } = await supabase
+          .from('User')
+          .insert({
+            id: randomUUID(),
+            email: testUser.email,
+            name: testUser.name,
+            role: 'SALES_REP',
+            updatedAt: new Date().toISOString(),
+          });
+        
+        if (error) {
+          console.error(`Error creating user ${testUser.email}:`, error);
+        }
+      }
     }
 
-    console.log('✅ Created users');
+    console.log('✅ Created users (1 admin + 5 test users)');
 
     // Create compliance rules
     const rules = [
@@ -607,7 +614,7 @@ GlobalFinance Ltd requires comprehensive consulting and implementation services 
 
     console.log('\n🎉 Seed completed successfully!');
     console.log('\n📊 Summary:');
-    console.log('- Users: 2 (admin@reviewer.ai, demo@reviewer.ai)');
+    console.log('- Users: 6 (1 admin: admin@reviewer.ai, 5 test users: test1-5@reviewer.ai)');
     console.log('- Rules:', rules.length);
     console.log('- Templates:', templates.length);
     console.log('- Proposals:', proposals.length);

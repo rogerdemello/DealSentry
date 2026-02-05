@@ -224,9 +224,17 @@ export default function Integrations() {
     const apiOrigin = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
     const url = oauthUrls[integration.type];
     if (url) {
-      const companyId = localStorage.getItem('companyId');
-      const state = companyId ? `?state=${encodeURIComponent(companyId)}` : '';
-      window.location.href = `${apiOrigin}${url}${state}`;
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to connect integrations",
+          variant: "destructive",
+        });
+        setConnecting(null);
+        return;
+      }
+      window.location.href = `${apiOrigin}${url}?token=${encodeURIComponent(token)}`;
     } else {
       setConnecting(null);
     }

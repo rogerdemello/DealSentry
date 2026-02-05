@@ -4,41 +4,32 @@ import { requireAuth, isAdmin, canAccessCompany } from './middleware/auth';
 
 const router = Router();
 
-// GET all integrations (scoped by company when company_id exists; otherwise return all so connected status shows)
+// GET all integrations (only show current user's integrations)
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    // First, try to fetch all integrations (works whether company_id column exists or not)
-    let { data: integrations, error } = await supabase
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Fetch only integrations belonging to the current user
+    const { data: integrations, error } = await supabase
       .from('Integration')
       .select('*, SyncLog(*)')
+      .eq('userId', userId)
       .order('createdAt', { ascending: false });
-
-    // If column exists, filter by company_id
-    if (!error && integrations) {
-      const companyId = req.user?.companyId ?? null;
-      if (companyId != null && companyId !== '') {
-        // Filter to show only integrations with matching company_id OR null (legacy)
-        integrations = integrations.filter((i: any) => {
-          const iCompanyId = i.company_id ?? null;
-          return iCompanyId === companyId || iCompanyId === null;
-        });
-      } else {
-        // User has no companyId: only show null company_id
-        integrations = integrations.filter((i: any) => (i.company_id ?? null) === null);
-      }
-    }
 
     if (error) throw error;
 
     console.log('GET /api/integrations - Returning:', {
+      userId,
       count: integrations?.length || 0,
       integrations: integrations?.map((i: any) => ({
         id: i.id,
         type: i.type,
         name: i.name,
         isActive: i.isActive,
-        hasCredentials: !!(i.credentials && Object.keys(i.credentials || {}).length > 0),
-        credentialsKeys: i.credentials ? Object.keys(i.credentials) : [],
       })),
     });
 
@@ -49,25 +40,26 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET single integration (admin or same company)
+// GET single integration (must belong to current user)
 router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
     const { data: integration, error } = await supabase
       .from('Integration')
       .select('*, SyncLog(*)')
       .eq('id', id)
+      .eq('userId', userId)
       .single();
 
     if (error) throw error;
     if (!integration) {
       return res.status(404).json({ error: 'Integration not found' });
-    }
-
-    const intCompanyId = (integration as { company_id?: string }).company_id ?? null;
-    if (!canAccessCompany(intCompanyId, req)) {
-      return res.status(403).json({ error: 'You do not have access to this integration' });
     }
 
     res.json(integration);
@@ -77,10 +69,15 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// POST create integration
-router.post('/', async (req: Request, res: Response) => {
+// POST create integration (creates for current user)
+router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const { type, name, credentials, config } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
     if (!type || !name) {
       return res.status(400).json({ error: 'Type and name are required' });
@@ -95,6 +92,7 @@ router.post('/', async (req: Request, res: Response) => {
         credentials: credentials || {},
         config: config || {},
         isActive: true,
+        userId: userId,
         updatedAt: new Date().toISOString(),
       })
       .select()
@@ -109,14 +107,25 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// PATCH update integration (admin or same company)
+// PATCH update integration (must belong to current user)
 router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, credentials, config, isActive } = req.body;
+    const userId = req.user?.id;
 
-    const { data: existing } = await supabase.from('Integration').select('company_id').eq('id', id).single();
-    if (existing && !canAccessCompany((existing as { company_id?: string }).company_id ?? null, req)) {
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Verify the integration belongs to the current user
+    const { data: existing } = await supabase
+      .from('Integration')
+      .select('userId')
+      .eq('id', id)
+      .single();
+
+    if (!existing || existing.userId !== userId) {
       return res.status(403).json({ error: 'You do not have access to this integration' });
     }
 
@@ -145,13 +154,24 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// DELETE integration (admin or same company)
+// DELETE integration (must belong to current user)
 router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
 
-    const { data: existing } = await supabase.from('Integration').select('company_id').eq('id', id).single();
-    if (existing && !canAccessCompany((existing as { company_id?: string }).company_id ?? null, req)) {
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Verify the integration belongs to the current user
+    const { data: existing } = await supabase
+      .from('Integration')
+      .select('userId')
+      .eq('id', id)
+      .single();
+
+    if (!existing || existing.userId !== userId) {
       return res.status(403).json({ error: 'You do not have access to this integration' });
     }
 
@@ -169,24 +189,25 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// POST trigger sync for integration (must belong to user's company)
+// POST trigger sync for integration (must belong to current user)
 router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
     const { data: integration, error: intError } = await supabase
       .from('Integration')
       .select('*')
       .eq('id', id)
+      .eq('userId', userId)
       .single();
 
     if (intError || !integration) {
       return res.status(404).json({ error: 'Integration not found' });
-    }
-
-    const intCompanyId = (integration as { company_id?: string }).company_id ?? null;
-    if (!canAccessCompany(intCompanyId, req)) {
-      return res.status(403).json({ error: 'You do not have access to this integration' });
     }
 
     let recordsAffected = 0;
@@ -287,9 +308,13 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
           const newDeals = deals.filter((deal: any) => !existingDealIds.has(deal.id));
 
           if (newDeals.length > 0) {
-            // Use the first available user or create a default one
+            // Use the first available user
             const { data: users } = await supabase.from('User').select('id').limit(1);
-            const defaultUserId = users?.[0]?.id || 'cmktbfc2w0000gks37adtbu7o'; // fallback to demo user
+            const defaultUserId = users?.[0]?.id;
+            
+            if (!defaultUserId) {
+              throw new Error('No users found in database. Please seed the database first.');
+            }
 
             const proposals = newDeals.map((deal: any) => ({
               id: crypto.randomUUID(),
@@ -521,7 +546,11 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
             if (newEmails.length > 0) {
               // Get the first available user
               const { data: users } = await supabase.from('User').select('id').limit(1);
-              const defaultUserId = users?.[0]?.id || 'cmktbfc2w0000gks37adtbu7o';
+              const defaultUserId = users?.[0]?.id;
+              
+              if (!defaultUserId) {
+                throw new Error('No users found in database. Please seed the database first.');
+              }
 
               // Create proposals from email threads
               const proposals = newEmails.map((email: any) => {
@@ -544,7 +573,6 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
                   lockedSections: [],
                   createdAt: email.date,
                   updatedAt: new Date().toISOString(),
-                  ...(intCompanyId ? { company_id: intCompanyId } : {}),
                   metadata: {
                     source: 'gmail',
                     emailThreadId: email.threadId,
@@ -840,11 +868,27 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET sync logs for integration
-router.get('/:id/logs', async (req: Request, res: Response) => {
+// GET sync logs for integration (must belong to current user)
+router.get('/:id/logs', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Verify the integration belongs to the current user
+    const { data: integration } = await supabase
+      .from('Integration')
+      .select('userId')
+      .eq('id', id)
+      .single();
+
+    if (!integration || integration.userId !== userId) {
+      return res.status(403).json({ error: 'You do not have access to this integration' });
+    }
 
     const { data: logs, error } = await supabase
       .from('SyncLog')
@@ -862,14 +906,21 @@ router.get('/:id/logs', async (req: Request, res: Response) => {
   }
 });
 
-// GET HubSpot deals (if HubSpot integration is active)
-router.get('/hubspot/deals', async (req: Request, res: Response) => {
+// GET HubSpot deals (if current user has HubSpot integration active)
+router.get('/hubspot/deals', requireAuth, async (req: Request, res: Response) => {
   try {
-    // Get HubSpot integration
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get user's HubSpot integration
     const { data: integration, error } = await supabase
       .from('Integration')
       .select('*')
       .eq('type', 'HUBSPOT')
+      .eq('userId', userId)
       .eq('isActive', true)
       .single();
 

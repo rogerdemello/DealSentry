@@ -1,7 +1,9 @@
 // Authentication helper functions
-// In production, integrate with your actual auth system (NextAuth, Auth0, etc.)
+// This file provides backward compatibility with the new auth-utils
 
-export type UserRole = 'ADMIN' | 'EMPLOYEE' | 'GUEST';
+import { getCurrentUser, hasRole as hasRoleUtil, isAdmin as isAdminUtil } from './auth-utils';
+
+export type UserRole = 'ADMIN' | 'SALES_REP' | 'SALES_MANAGER' | 'LEGAL' | 'REVOPS' | 'AUDITOR';
 
 export interface User {
   id: string;
@@ -12,20 +14,14 @@ export interface User {
 
 /**
  * Get the current user's role
- * In production, this would fetch from your auth session/JWT
  */
 export function getUserRole(): UserRole {
-  // Check localStorage for demo purposes
-  if (typeof window !== 'undefined') {
-    const storedRole = localStorage.getItem('userRole') as UserRole | null;
-    return storedRole || 'ADMIN'; // Default to ADMIN for demo
-  }
-  return 'ADMIN';
+  const user = getCurrentUser();
+  return (user?.role as UserRole) || 'SALES_REP';
 }
 
 /**
- * Set user role (for demo/testing purposes)
- * In production, this would be managed by your auth system
+ * Set user role (for demo/testing purposes - deprecated, use auth API instead)
  */
 export function setUserRole(role: UserRole): void {
   if (typeof window !== 'undefined') {
@@ -37,16 +33,19 @@ export function setUserRole(role: UserRole): void {
  * Check if user has required role
  */
 export function hasRole(role: UserRole | UserRole[]): boolean {
-  const userRole = getUserRole();
-  if (Array.isArray(role)) {
-    return role.includes(userRole);
-  }
-  return userRole === role;
+  return hasRoleUtil(role);
 }
 
 /**
  * Check if user can access audit logs
  */
 export function canAccessAudit(): boolean {
-  return hasRole(['ADMIN', 'EMPLOYEE']);
+  return hasRole(['ADMIN', 'AUDITOR']);
+}
+
+/**
+ * Check if user is an admin
+ */
+export function isAdmin(): boolean {
+  return isAdminUtil();
 }

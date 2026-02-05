@@ -1,22 +1,23 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { supabase } from '../lib/supabase';
 
 const router = Router();
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
+const SALT_ROUNDS = 10;
 
 // POST login
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // In a real app, you'd verify the password hash
-    // For demo purposes, we'll just find the user by email
+    // Find user by email
     const { data: user, error } = await supabase
       .from('User')
       .select('*')
@@ -24,6 +25,19 @@ router.post('/login', async (req: Request, res: Response) => {
       .single();
 
     if (error || !user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if user has a password set
+    if (!user.password) {
+      return res.status(401).json({ 
+        error: 'Password not set. Please contact your administrator to set up your password.' 
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -60,6 +74,11 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
     // Check if user already exists
     const { data: existing } = await supabase
       .from('User')
@@ -71,14 +90,15 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'User already exists' });
     }
 
-    // In a real app, hash the password with bcrypt
-    // const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     const companyId = (req.body.companyId as string) || null;
 
     const insertPayload: Record<string, unknown> = {
       id: crypto.randomUUID(),
       email,
+      password: hashedPassword,
       name: name || null,
       role: 'SALES_REP',
       updatedAt: new Date().toISOString(),

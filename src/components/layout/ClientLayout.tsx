@@ -14,6 +14,7 @@ import {
   Crown,
   Home as HomeIcon
 } from "lucide-react";
+import { isAuthenticated, getCurrentUser, clearAuthData } from "@/lib/auth-utils";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -42,13 +43,12 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const [userName, setUserName] = useState<string>("");
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem("isLoggedIn") === "true";
-    const role = localStorage.getItem("userRole") || "";
-    const name = localStorage.getItem("userName") || "User";
+    const loggedIn = isAuthenticated();
+    const currentUser = getCurrentUser();
 
     setIsLoggedIn(loggedIn);
-    setUserRole(role);
-    setUserName(name);
+    setUserRole(currentUser?.role || "");
+    setUserName(currentUser?.name || currentUser?.email || "User");
 
     // Allow access to home page and auth pages without authentication
     const publicPaths = ["/", "/login", "/auth", "/signup"];
@@ -58,9 +58,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   }, [location.pathname, navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
+    clearAuthData();
     navigate("/auth");
   };
 

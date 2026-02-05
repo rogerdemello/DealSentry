@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowRight, 
   Sparkles, 
-  Crown, 
-  Users, 
   FileCheck, 
   Shield, 
   Settings,
@@ -19,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { authApi } from "@/lib/api-client";
+import { setAuthData } from "@/lib/auth-utils";
 import { toast } from "sonner";
 
 type AuthMode = "login" | "signup";
@@ -34,8 +33,8 @@ export default function Auth() {
   };
   
   const [mode, setMode] = useState<AuthMode>(() => getInitialMode(location.pathname));
-  const [email, setEmail] = useState("demo@reviewer.ai");
-  const [password, setPassword] = useState("demo");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -98,31 +97,26 @@ export default function Auth() {
         response = await authApi.register(email, password, name || undefined);
       }
       
-      localStorage.setItem("auth_token", response.token);
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userRole", response.user.role);
-      localStorage.setItem("userName", response.user.name || response.user.email);
-      localStorage.setItem("userId", response.user.id);
-      if (response.user.companyId != null) {
-        localStorage.setItem("companyId", response.user.companyId);
-      } else {
-        localStorage.removeItem("companyId");
-      }
+      // Use the new auth utility to store auth data
+      setAuthData(response.token, response.user);
       
       toast.success(mode === "login" ? "Welcome back!" : "Account created successfully!");
-      navigate("/dashboard");
+      
+      // Redirect to the page user was trying to access, or dashboard
+      const from = (location.state as any)?.from?.pathname || "/dashboard";
+      navigate(from, { replace: true });
     } catch (error: any) {
-      toast.error(error.message || `${mode === "login" ? "Login" : "Registration"} failed`);
+      const message = error?.message || `${mode === "login" ? "Login" : "Registration"} failed`;
+      if (message.includes("Cannot reach the server")) {
+        toast.error("Network error. Start the API server (npm run server) or run start.bat to start both frontend and API.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickLogin = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("demo");
-    setMode("login");
-  };
 
   const switchMode = () => {
     const newMode = mode === "login" ? "signup" : "login";
@@ -394,50 +388,20 @@ export default function Auth() {
           </form>
 
           {mode === "login" && (
-            <>
-              <div className="mt-6 pt-6 border-t">
-                <p className="text-sm text-muted-foreground text-center mb-3">
-                  Quick Login (Demo)
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    onClick={() => handleQuickLogin("admin@reviewer.ai")}
-                    className="text-xs"
-                  >
-                    <Crown className="w-3 h-3 mr-1" />
-                    Admin
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    onClick={() => handleQuickLogin("demo@reviewer.ai")}
-                    className="text-xs"
-                  >
-                    <Users className="w-3 h-3 mr-1" />
-                    Sales Rep
-                  </Button>
-                </div>
+            <div className="mt-6 pt-6 border-t">
+              <div className="grid gap-3">
+                {[
+                  { icon: FileCheck, text: "AI-powered compliance" },
+                  { icon: Shield, text: "Enterprise security" },
+                  { icon: Settings, text: "Custom workflows" },
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <feature.icon className="w-4 h-4" />
+                    <span>{feature.text}</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="mt-6 pt-6 border-t">
-                <div className="grid gap-3">
-                  {[
-                    { icon: FileCheck, text: "AI-powered compliance" },
-                    { icon: Shield, text: "Enterprise security" },
-                    { icon: Settings, text: "Custom workflows" },
-                  ].map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <feature.icon className="w-4 h-4" />
-                      <span>{feature.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
+            </div>
           )}
 
           {mode === "signup" && (

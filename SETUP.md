@@ -39,9 +39,9 @@ The app will open at `http://localhost:5173`
   - Password: `demo`
   - Access: Full system access, audit logs, user management
 
-- **Sales Rep**
-  - Email: `demo@reviewer.ai`
-  - Password: `demo`
+- **Test Users** (5 users)
+  - Emails: `test1@reviewer.ai` through `test5@reviewer.ai`
+  - Password: `demo` (for all test users)
   - Access: Create proposals, review, integrations
 
 ---
@@ -87,7 +87,7 @@ The app will open at `http://localhost:5173`
 
 ### 📋 Sample Data Included
 
-- **2 Users** (admin@reviewer.ai, demo@reviewer.ai)
+- **6 Users** (1 admin: admin@reviewer.ai, 5 test users: test1-5@reviewer.ai)
 - **8 Compliance Rules** (discount limits, legal clauses, etc.)
 - **4 Templates** (Sales Proposal, MSA, SOW, NDA)
 - **3 Sample Proposals** (with risk reports)

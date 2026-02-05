@@ -10,7 +10,7 @@ echo Frontend App: http://localhost:8080
 echo.
 echo Login Credentials:
 echo   Admin: admin@reviewer.ai / demo
-echo   Sales Rep: demo@reviewer.ai / demo
+echo   Test Users: test1@reviewer.ai through test5@reviewer.ai / demo
 echo.
 echo ========================================
 echo.

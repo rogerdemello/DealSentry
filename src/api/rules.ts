@@ -4,17 +4,36 @@ import { requireAuth, isAdmin } from './middleware/auth';
 
 const router = Router();
 
+/** Normalize rule from DB (supports snake_case or camelCase) to frontend shape. */
+function toRuleShape(r: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!r || !r.id) return null;
+  return {
+    id: r.id,
+    name: r.name ?? '',
+    type: r.type ?? 'STRUCTURAL',
+    description: r.description ?? '',
+    logic: r.logic ?? {},
+    isActive: (r as any).isActive ?? (r as any).is_active ?? true,
+    createdAt: (r as any).createdAt ?? (r as any).created_at ?? new Date().toISOString(),
+    updatedAt: (r as any).updatedAt ?? (r as any).updated_at ?? new Date().toISOString(),
+  };
+}
+
 // GET all rules (authenticated users: read-only)
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { data: rules, error } = await supabase
-      .from('Rule')
-      .select('*')
-      .order('createdAt', { ascending: false });
-
+    let result = await supabase.from('Rule').select('*').order('updatedAt', { ascending: false });
+    if (result.error && result.error.message?.toLowerCase().includes('column')) {
+      result = await supabase.from('Rule').select('*').order('updated_at', { ascending: false });
+    }
+    if (result.error && result.error.message?.toLowerCase().includes('column')) {
+      result = await supabase.from('Rule').select('*');
+    }
+    const { data: rules, error } = result;
     if (error) throw error;
 
-    res.json(rules || []);
+    const normalized = (rules || []).map((r) => toRuleShape(r)).filter(Boolean);
+    res.json(normalized);
   } catch (error) {
     console.error('Error fetching rules:', error);
     res.status(500).json({ error: 'Failed to fetch rules' });
@@ -34,23 +53,39 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Name and type are required' });
     }
 
-    const { data: rule, error } = await supabase
-      .from('Rule')
-      .insert({
-        id: crypto.randomUUID(),
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const camelPayload = {
+      id,
+      name,
+      type,
+      description: description || '',
+      logic: logic || {},
+      isActive: isActive ?? true,
+      updatedAt: now,
+    };
+    let result = await supabase.from('Rule').insert(camelPayload).select().single();
+    if (result.error && result.error.message?.includes('column')) {
+      const snakePayload = {
+        id,
         name,
         type,
         description: description || '',
         logic: logic || {},
-        isActive: isActive ?? true,
-        updatedAt: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
+        is_active: isActive ?? true,
+        updated_at: now,
+      };
+      result = await supabase.from('Rule').insert(snakePayload).select().single();
+    }
+    const { data: rule, error } = result;
     if (error) throw error;
 
-    res.status(201).json(rule);
+    const body = toRuleShape(rule);
+    if (!body) {
+      console.error('Create rule: insert did not return a row');
+      return res.status(500).json({ error: 'Failed to create rule' });
+    }
+    res.status(201).json(body);
   } catch (error) {
     console.error('Error creating rule:', error);
     res.status(500).json({ error: 'Failed to create rule' });
@@ -83,7 +118,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    res.json(rule);
+    res.json(toRuleShape(rule));
   } catch (error) {
     console.error('Error updating rule:', error);
     res.status(500).json({ error: 'Failed to update rule' });

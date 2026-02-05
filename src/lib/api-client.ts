@@ -72,24 +72,39 @@ export interface AuditLog {
   proposal: { title: string } | null;
 }
 
+/** Message shown when the server cannot be reached (e.g. backend not running). */
+export const NETWORK_ERROR_MESSAGE =
+  'Cannot reach the server. Make sure the API is running (e.g. run "npm run server" or use start.bat).';
+
 // Helper for API calls
 async function apiCall<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   // Get auth token from localStorage
   const token = localStorage.getItem('auth_token');
-  
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-    ...options,
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+      ...options,
+    });
+  } catch (err) {
+    const msg = (err as Error).message || '';
+    const isNetworkError =
+      err instanceof TypeError ||
+      msg === 'Failed to fetch' ||
+      msg === 'Load failed' ||
+      /network|fetch|connection|refused/i.test(msg);
+    throw new Error(isNetworkError ? NETWORK_ERROR_MESSAGE : msg);
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));

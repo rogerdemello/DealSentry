@@ -84,10 +84,17 @@ A complete proposal lifecycle management platform that ensures proposals follow 
 
 3. **Configure environment variables**
    
-   Create `.env.local`:
+   Create `.env` file in the root directory:
    ```env
    # Database
    DATABASE_URL="postgresql://user:password@localhost:5432/proposal_reviewer"
+   
+   # Authentication (REQUIRED)
+   NEXTAUTH_SECRET=your_secure_secret_key_here
+   # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   
+   # API Configuration
+   VITE_API_URL=http://localhost:3001
    
    # Email (Optional - for sharing feature)
    RESEND_API_KEY=your_resend_api_key
@@ -112,14 +119,34 @@ A complete proposal lifecycle management platform that ensures proposals follow 
    npx prisma db push
    ```
 
-5. **Run development server**
+5. **Set up authentication system**
    ```bash
+   # Create default admin user
+   npx tsx scripts/migrate-auth.ts
+   ```
+   
+   Default admin credentials:
+   - Email: `admin@proposal-reviewer.com`
+   - Password: `Admin@123`
+   
+   **⚠️ IMPORTANT:** Change this password immediately after first login!
+
+6. **Run development server**
+   ```bash
+   # Option 1: Run frontend and backend together
+   npm run dev:full
+   
+   # Option 2: Run separately
+   # Terminal 1:
    npm run dev
+   
+   # Terminal 2:
+   npm run server
    ```
 
-6. **Open in browser**
+7. **Open in browser**
    ```
-   http://localhost:3000
+   http://localhost:5173
    ```
 
 ---

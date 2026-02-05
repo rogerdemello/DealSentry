@@ -19,14 +19,16 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      Role     @default(SALES_REP)
-  proposals Proposal[]
-  auditLogs AuditLog[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String        @id @default(cuid())
+  email        String        @unique
+  password     String?       // Hashed password (optional for migration)
+  name         String?
+  role         Role          @default(SALES_REP)
+  proposals    Proposal[]
+  auditLogs    AuditLog[]
+  integrations Integration[] // User's personal integrations
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Proposal {
@@ -76,6 +78,8 @@ model Integration {
   config        Json     // Sync settings, mappings
   isActive      Boolean  @default(true)
   lastSyncAt    DateTime?
+  userId        String?  // User who owns this integration (optional during migration)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   syncLogs      SyncLog[]

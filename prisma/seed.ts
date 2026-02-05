@@ -15,17 +15,28 @@ async function seed() {
       },
     });
 
-    const demoUser = await prisma.user.upsert({
-      where: { email: 'demo@reviewer.ai' },
-      update: {},
-      create: {
-        email: 'demo@reviewer.ai',
-        name: 'Demo Sales Rep',
-        role: 'SALES_REP',
-      },
-    });
+    // Create 5 test users
+    const testUsers = [
+      { email: 'test1@reviewer.ai', name: 'Test User 1' },
+      { email: 'test2@reviewer.ai', name: 'Test User 2' },
+      { email: 'test3@reviewer.ai', name: 'Test User 3' },
+      { email: 'test4@reviewer.ai', name: 'Test User 4' },
+      { email: 'test5@reviewer.ai', name: 'Test User 5' },
+    ];
 
-    console.log('✅ Created users:', adminUser.email, demoUser.email);
+    for (const testUser of testUsers) {
+      await prisma.user.upsert({
+        where: { email: testUser.email },
+        update: {},
+        create: {
+          email: testUser.email,
+          name: testUser.name,
+          role: 'SALES_REP',
+        },
+      });
+    }
+
+    console.log('✅ Created users: 1 admin + 5 test users');
 
     // Create compliance rules
     const rules = [
