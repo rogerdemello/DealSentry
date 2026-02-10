@@ -14,8 +14,7 @@ import {
   Percent,
   Calendar,
   TrendingUp,
-  Trash2,
-  Brain
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +33,7 @@ import { RiskBar } from "@/components/ui/RiskBar";
 import { useProposals } from "@/context/ProposalContext";
 import { Finding, Recommendation } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { formatIST } from "@/lib/utils";
 import { useState } from "react";
 
 const severityConfig = {
@@ -48,9 +47,8 @@ export default function ProposalReview() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getProposal, updateProposalStatus, deleteProposal, analyzeProposal } = useProposals();
+  const { getProposal, updateProposalStatus, deleteProposal } = useProposals();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const proposal = getProposal(id || "");
   
@@ -118,12 +116,49 @@ export default function ProposalReview() {
     });
   };
 
-  const handleExportPdf = () => {
-    const apiOrigin = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    const url = `${apiOrigin}/api/proposals/${proposal.id}/export/pdf`;
-    // Open in new tab to trigger download
-    window.open(url, '_blank');
-    toast({ title: 'Exporting PDF', description: 'Your PDF is being generated and will download shortly.' });
+  const handleExportPdf = async () => {
+    try {
+      const apiOrigin = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const url = `${apiOrigin}/api/proposals/${proposal.id}/export/pdf`;
+      const token = localStorage.getItem('auth_token');
+      
+      toast({ title: 'Exporting PDF', description: 'Generating your PDF...' });
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to export PDF' }));
+        throw new Error(error.error || 'Failed to export PDF');
+      }
+
+      // Get the PDF blob and download it
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `proposal-${proposal.title.replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast({ 
+        title: 'PDF Downloaded', 
+        description: 'Your proposal has been exported successfully.' 
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: 'Export Failed',
+        description: error instanceof Error ? error.message : 'Failed to export PDF',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -136,29 +171,7 @@ export default function ProposalReview() {
     navigate("/proposals");
   };
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    toast({
-      title: "Analyzing Proposal",
-      description: "AI is evaluating compliance and risk..."
-    });
-    
-    try {
-      await analyzeProposal(proposal.id);
-      toast({
-        title: "Analysis Complete",
-        description: `"${proposal.title}" has been analyzed`
-      });
-    } catch (error) {
-      toast({
-        title: "Analysis Failed",
-        description: "Failed to analyze proposal. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+
 
   const getScoreColor = (score: number) => {
     if (score >= 76) return "text-emerald-600";
@@ -215,7 +228,7 @@ export default function ProposalReview() {
               )}
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4" />
-                {format(new Date(proposal.createdAt), "MMM dd, yyyy")}
+                {formatIST(new Date(proposal.createdAt), "MMM dd, yyyy")}
               </span>
             </div>
           </div>
@@ -365,15 +378,6 @@ export default function ProposalReview() {
               Actions
             </h3>
             <div className="space-y-2.5">
-              <Button 
-                className="w-full bg-primary hover:bg-primary/90" 
-                onClick={handleAnalyze}
-                disabled={isAnalyzing}
-              >
-                <Brain className="w-4 h-4 mr-2" />
-                {isAnalyzing ? "Analyzing..." : "Run Analysis"}
-              </Button>
-              
               {(() => {
                 const isAdmin = localStorage.getItem('userRole') === 'ADMIN';
                 if (!isAdmin) return null;
@@ -481,13 +485,13 @@ export default function ProposalReview() {
               <div className="border-t border-border pt-4 flex justify-between">
                 <dt className="text-muted-foreground">Created</dt>
                 <dd className="font-medium text-foreground text-right">
-                  {format(new Date(proposal.createdAt), "MMM d, yyyy")}
+                  {formatIST(new Date(proposal.createdAt), "MMM d, yyyy")}
                 </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Last Updated</dt>
                 <dd className="font-medium text-foreground text-right">
-                  {format(new Date(proposal.updatedAt), "MMM d, yyyy")}
+                  {formatIST(new Date(proposal.updatedAt), "MMM d, yyyy")}
                 </dd>
               </div>
             </dl>

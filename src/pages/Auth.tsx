@@ -10,13 +10,16 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
-  XCircle
+  XCircle,
+  AlertCircle,
+  Server
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { authApi } from "@/lib/api-client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { authApi, checkApiHealth } from "@/lib/api-client";
 import { setAuthData } from "@/lib/auth-utils";
 import { toast } from "sonner";
 
@@ -41,6 +44,29 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [apiServerOnline, setApiServerOnline] = useState<boolean | null>(null);
+  const [checkingServer, setCheckingServer] = useState(true);
+
+  // Check API server health on component mount
+  useEffect(() => {
+    const checkServer = async () => {
+      setCheckingServer(true);
+      const isOnline = await checkApiHealth();
+      setApiServerOnline(isOnline);
+      setCheckingServer(false);
+    };
+    
+    checkServer();
+    
+    // Check again every 10 seconds if offline
+    const interval = setInterval(() => {
+      if (apiServerOnline === false) {
+        checkServer();
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [apiServerOnline]);
 
   // Update mode when route changes
   useEffect(() => {
@@ -108,7 +134,11 @@ export default function Auth() {
     } catch (error: any) {
       const message = error?.message || `${mode === "login" ? "Login" : "Registration"} failed`;
       if (message.includes("Cannot reach the server")) {
-        toast.error("Network error. Start the API server (npm run server) or run start.bat to start both frontend and API.");
+        toast.error("Cannot connect to API server", {
+          description: "Please start the API server by running 'npm run server' or use start.bat",
+          duration: 8000,
+        });
+        setApiServerOnline(false); // Update server status
       } else {
         toast.error(message);
       }
@@ -203,6 +233,51 @@ export default function Auth() {
               Sign Up
             </button>
           </div>
+
+          {/* API Server Status Warning */}
+          {apiServerOnline === false && !checkingServer && (
+            <Alert variant="destructive" className="mb-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Server className="h-4 w-4" />
+                    <AlertTitle>API Server Offline</AlertTitle>
+                  </div>
+                  <AlertDescription className="text-sm mt-1">
+                    The API server is not running. Please run <code className="bg-destructive/20 px-1.5 py-0.5 rounded text-xs">start.bat</code> or <code className="bg-destructive/20 px-1.5 py-0.5 rounded text-xs">npm run server</code> to start it.
+                  </AlertDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setCheckingServer(true);
+                    const isOnline = await checkApiHealth();
+                    setApiServerOnline(isOnline);
+                    setCheckingServer(false);
+                    if (isOnline) {
+                      toast.success("API server is now online!");
+                    } else {
+                      toast.error("API server is still offline");
+                    }
+                  }}
+                  className="shrink-0 text-xs"
+                >
+                  Retry
+                </Button>
+              </div>
+            </Alert>
+          )}
+
+          {checkingServer && (
+            <Alert className="mb-6 bg-muted/50 border-muted">
+              <Server className="h-4 w-4 animate-pulse" />
+              <AlertDescription className="text-sm">
+                Checking API server status...
+              </AlertDescription>
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <AnimatePresence mode="wait">
@@ -377,13 +452,19 @@ export default function Auth() {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading || (mode === "signup" && (!passwordValidation?.isValid || !passwordsMatch || !acceptedTerms))}
+              disabled={
+                isLoading || 
+                apiServerOnline === false || 
+                (mode === "signup" && (!passwordValidation?.isValid || !passwordsMatch || !acceptedTerms))
+              }
             >
               {isLoading 
                 ? (mode === "login" ? "Signing in..." : "Creating account...") 
+                : apiServerOnline === false
+                ? "API Server Required"
                 : (mode === "login" ? "Sign In" : "Create Account")
               }
-              <ArrowRight className="ml-2 w-4 h-4" />
+              {apiServerOnline !== false && <ArrowRight className="ml-2 w-4 h-4" />}
             </Button>
           </form>
 

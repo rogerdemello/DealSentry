@@ -30,6 +30,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+server.log
+*.log
+
+# temporary files
+nul
+null
+*.tmp
 
 # env files (can opt-in for committing if needed)
 .env*

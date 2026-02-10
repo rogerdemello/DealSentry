@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Upload, X, Loader2, ArrowLeft, CheckCircle, Sparkles, FileText } from "lucide-react";
+import { Upload, X, Loader2, ArrowLeft, CheckCircle, Sparkles, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,34 @@ export default function UploadProposal() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState<'uploading' | 'extracting' | 'analyzing'>('uploading');
   const [isDragging, setIsDragging] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const handleRetryConnection = async () => {
+    setIsRetrying(true);
+    try {
+      const connected = await refreshProposals();
+      if (connected) {
+        toast({
+          title: "Connected",
+          description: "API connection restored successfully",
+        });
+      } else {
+        toast({
+          title: "Still Offline",
+          description: "Could not connect to API server. Please ensure it's running.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Connection Failed",
+        description: "Please check if the API server is running (npm run server)",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -126,17 +154,15 @@ export default function UploadProposal() {
           : `"${file.name}" has been added (offline mode)`,
       });
 
-      // Ensure context has latest data (including analysis), then navigate to review
-      if (newProposal && isApiConnected) {
+      // Ensure context has latest data before navigation
+      if (newProposal) {
         await refreshProposals();
-      }
-      setTimeout(() => {
-        if (newProposal) {
+        setTimeout(() => {
           navigate(`/proposals/${newProposal.id}/review`);
-        } else {
-          navigate('/proposals');
-        }
-      }, 500);
+        }, 300);
+      } else {
+        navigate('/proposals');
+      }
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -184,10 +210,22 @@ export default function UploadProposal() {
           Upload a DOCX or PDF file for AI-powered analysis
         </p>
         {!isApiConnected && (
-          <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Running in offline mode - changes won't be saved to database
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Running in offline mode - changes won't be saved to database
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs px-2"
+              onClick={handleRetryConnection}
+              disabled={isRetrying}
+            >
+              <RefreshCw className={`w-3 h-3 mr-1 ${isRetrying ? 'animate-spin' : ''}`} />
+              Retry
+            </Button>
+          </div>
         )}
       </motion.div>
 

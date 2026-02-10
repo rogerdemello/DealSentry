@@ -26,35 +26,83 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApiConnected, setIsApiConnected] = useState(false);
+  const [hasShownOfflineWarning, setHasShownOfflineWarning] = useState(false);
 
-  // Fetch proposals on mount
+  // Fetch proposals on mount with retry logic
   useEffect(() => {
-    fetchProposals();
+    let retryCount = 0;
+    const maxRetries = 10;
+    const retryDelay = 2000; // 2 seconds
+
+    const attemptFetch = async () => {
+      const success = await fetchProposals();
+      
+      if (!success && retryCount < maxRetries) {
+        retryCount++;
+        console.log(`API connection failed, retrying... (${retryCount}/${maxRetries})`);
+        setTimeout(attemptFetch, retryDelay);
+      } else if (!success && retryCount >= maxRetries && !hasShownOfflineWarning) {
+        setHasShownOfflineWarning(true);
+        toast({
+          title: "Offline Mode",
+          description: "Running with mock data. Please check your API server.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    attemptFetch();
   }, []);
 
-  const fetchProposals = async () => {
-    setLoading(true);
+  // Periodic API connectivity check (every 30 seconds)
+  useEffect(() => {
+    if (!isApiConnected) {
+      const interval = setInterval(async () => {
+        console.log('Checking API connectivity...');
+        const connected = await fetchProposals(true); // Silent retry
+        if (connected && !isApiConnected) {
+          toast({
+            title: "Connected",
+            description: "API connection restored",
+          });
+        }
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isApiConnected]);
+
+  const fetchProposals = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
     
     try {
       const data = await proposalsApi.getAll();
       setProposals(data);
       setIsApiConnected(true);
+      return true;
     } catch (err) {
-      console.warn('API not available, using mock data:', err);
+      if (!silent) {
+        console.warn('API not available, using mock data:', err);
+      }
       // Fall back to mock data if API is not available
       setProposals(mockProposals.map(p => ({
         ...p,
         riskReport: undefined,
       })) as Proposal[]);
       setIsApiConnected(false);
+      return false;
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   const refreshProposals = async () => {
-    await fetchProposals();
+    return await fetchProposals();
   };
 
   const getProposal = (id: string) => {
@@ -100,21 +148,14 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
         // Add to list immediately so the proposal is visible even if analysis fails
         setProposals((prev) => [newProposal, ...prev]);
 
-        console.log('✅ Proposal created:', newProposal.id);
-
         toast({
           title: "Analyzing Proposal",
           description: "AI is evaluating compliance and risk...",
         });
-
-        console.log('🔍 Starting auto-analysis for:', newProposal.id);
         await analyzeProposal(newProposal.id);
 
-        console.log('✅ Analysis complete');
         await fetchProposals();
         const updatedProposal = await proposalsApi.getById(newProposal.id);
-
-        console.log('✅ Updated proposal fetched:', updatedProposal);
         toast({
           title: "Analysis Complete",
           description: "Proposal has been analyzed successfully",
@@ -183,19 +224,14 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
 
   const analyzeProposal = async (id: string) => {
     if (!isApiConnected) {
-      console.warn('⚠️ API not connected, skipping analysis');
       return;
     }
     
-    console.log('🔍 Analyzing proposal:', id);
-    
     try {
       const result = await proposalsApi.analyze(id);
-      console.log('✅ Analysis result:', result);
       
       // Fetch the updated proposal from API to get all fields
       const updatedProposal = await proposalsApi.getById(id);
-      console.log('✅ Fetched updated proposal:', updatedProposal);
       
       // Update the local proposal with fresh data
       setProposals((prev) =>
@@ -204,7 +240,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
         )
       );
     } catch (err) {
-      console.error('❌ Failed to analyze proposal:', err);
       throw err; // Re-throw to allow UI to handle error
     }
   };

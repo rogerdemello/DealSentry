@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { auditApi } from "@/lib/api-client";
 import { AuditLog } from "@/types";
-import { format } from "date-fns";
+import { formatIST } from "@/lib/utils";
 
 type Severity = "ALL" | "CRITICAL" | "WARNING" | "INFO";
 
@@ -96,7 +96,7 @@ export default function Audit() {
   const handleExport = () => {
     const headers = ["Timestamp", "Action", "Actor Name", "Actor Email", "Actor Role", "Proposal", "Severity"];
     const rows = filteredLogs.map((log) => [
-      format(new Date(log.timestamp), "yyyy-MM-dd HH:mm:ss"),
+      formatIST(new Date(log.timestamp), "yyyy-MM-dd HH:mm:ss"),
       log.action,
       log.actor.name || "",
       log.actor.email,
@@ -114,7 +114,7 @@ export default function Audit() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `audit_log_${format(new Date(), "yyyyMMdd_HHmmss")}.csv`;
+    a.download = `audit_log_${formatIST(new Date(), "yyyyMMdd_HHmmss")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -289,7 +289,7 @@ export default function Audit() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {format(new Date(log.timestamp), "MMM d, yyyy 'at' h:mm a")}
+                        {formatIST(new Date(log.timestamp), "MMM d, yyyy 'at' h:mm a")}
                       </span>
                       <span>
                         by <span className="text-foreground font-medium">{log.actor.name || log.actor.email}</span>

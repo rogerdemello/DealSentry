@@ -53,7 +53,6 @@ The app will open at `http://localhost:5173`
 1. **Proposal Management**
    - Create, upload, and review proposals
    - AI-powered risk analysis with Azure OpenAI
-   - Version control and amendments
    - Contract renewal tracking
 
 2. **Compliance Engine**
@@ -158,7 +157,49 @@ npm run build
 
 ---
 
-## 📁 Project Structure
+## � Production Deployment
+
+### Environment Variables for Production
+
+Before deploying to production, set these critical environment variables:
+
+```bash
+# Set Node environment to production
+NODE_ENV=production
+
+# Set your production domain (REQUIRED for CORS security)
+PRODUCTION_URL=https://your-production-domain.com
+
+# Use strong secrets (CHANGE THESE!)
+NEXTAUTH_SECRET=your-strong-random-secret-here
+
+# Database and other configs...
+DATABASE_URL=postgresql://...
+AZURE_OPENAI_ENDPOINT=https://...
+```
+
+### CORS Security
+
+The application automatically restricts CORS based on environment:
+
+- **Development** (`NODE_ENV != production`): Allows localhost origins
+- **Production** (`NODE_ENV = production`): Only allows `PRODUCTION_URL`
+
+**Important**: Set `PRODUCTION_URL` environment variable to your actual domain before deploying!
+
+### Production Checklist
+
+- [ ] Set `NODE_ENV=production`
+- [ ] Set `PRODUCTION_URL` to your domain
+- [ ] Change `NEXTAUTH_SECRET` to a strong random string
+- [ ] Configure production database
+- [ ] Set up Azure OpenAI credentials
+- [ ] Configure real OAuth credentials (if using integrations)
+- [ ] Test CORS is working correctly
+
+---
+
+## �📁 Project Structure
 
 ```
 proposal-reviewer/

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { RefreshCw, Link2Off, Check, Loader2, Link2, Settings, ExternalLink, Cloud, Mail, Target } from "lucide-react";
+import { RefreshCw, Link2Off, Check, Loader2, Link2, ExternalLink, Cloud, Mail, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mockIntegrations } from "@/data/mockData";
 import { Integration } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useProposals } from "@/context/ProposalContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNowIST } from "@/lib/utils";
 
 const integrationConfig = {
   SALESFORCE: {
@@ -71,18 +71,6 @@ export default function Integrations() {
         const hasCredentials = d.credentials && typeof d.credentials === 'object' && Object.keys(d.credentials).length > 0;
         const isActive = d.isActive && hasCredentials;
         
-        // Debug logging
-        if (d.type === 'HUBSPOT') {
-          console.log('HubSpot integration from API:', {
-            id: d.id,
-            type: d.type,
-            isActive: d.isActive,
-            hasCredentials,
-            credentialsKeys: d.credentials ? Object.keys(d.credentials) : [],
-            finalIsActive: isActive,
-          });
-        }
-        
         return {
           id: d.id,
           type: d.type,
@@ -120,23 +108,11 @@ export default function Integrations() {
         }
       });
       
-      console.log('Integrations from API:', {
-        raw: data,
-        mapped: dbIntegrations,
-        byType: Array.from(byType.entries()),
-      });
-      
       const merged = types.map((type) => {
         const existing = byType.get(type);
         if (existing) {
-          console.log(`Found ${type} integration:`, {
-            id: existing.id,
-            isActive: existing.isActive,
-            hasCredentials: !!(existing.credentials && Object.keys(existing.credentials).length > 0),
-          });
           return existing;
         }
-        console.log(`No ${type} integration found, using placeholder`);
         return {
           id: `placeholder-${type}`,
           type,
@@ -150,7 +126,6 @@ export default function Integrations() {
         } as Integration;
       });
 
-      console.log('Final merged integrations:', merged);
       setIntegrations(merged);
 
       const status: Record<string, boolean> = {};
@@ -203,7 +178,6 @@ export default function Integrations() {
       // Refetch from API to show the real connected status from database
       // Use longer delay to ensure DB save is committed
       setTimeout(() => {
-        console.log('Refetching integrations after OAuth success...');
         fetchIntegrations();
       }, 1000);
     }
@@ -479,26 +453,17 @@ export default function Integrations() {
                         )}
                         {isSyncing ? "Syncing..." : "Sync Now"}
                       </Button>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          <Settings className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDisconnect(integration)}
-                          className="flex-1 text-muted-foreground hover:text-destructive hover:bg-destructive/8"
-                        >
-                          <Link2Off className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDisconnect(integration)}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/8"
+                      >
+                        <Link2Off className="w-3.5 h-3.5" />
+                      </Button>
                       {integration.lastSyncAt && (
                         <p className="text-[11px] text-muted-foreground text-center">
-                          Synced {formatDistanceToNow(new Date(integration.lastSyncAt), { addSuffix: true })}
+                          Synced {formatDistanceToNowIST(new Date(integration.lastSyncAt), { addSuffix: true })}
                         </p>
                       )}
                     </>

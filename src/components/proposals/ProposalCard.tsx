@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Calendar, Building2, Eye, FileText, DollarSign, Percent, Trash2 } from "lucide-react";
+import { Calendar, Building2, Eye, FileText, DollarSign, Percent, Trash2, Sparkles } from "lucide-react";
 import { Proposal } from "@/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScoreBar } from "@/components/ui/ScoreBar";
@@ -18,8 +18,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useProposals } from "@/context/ProposalContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNowIST } from "@/lib/utils";
 import { useState } from "react";
+import { proposalsApi } from "@/lib/api-client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -29,10 +31,12 @@ interface ProposalCardProps {
 }
 
 export function ProposalCard({ proposal, index = 0, isSelected = false, onSelect }: ProposalCardProps) {
-  const { deleteProposal } = useProposals();
+  const { deleteProposal, refreshProposals } = useProposals();
+  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  const formattedDate = formatDistanceToNow(new Date(proposal.createdAt), {
+  const formattedDate = formatDistanceToNowIST(new Date(proposal.createdAt), {
     addSuffix: true,
   });
 
@@ -40,6 +44,26 @@ export function ProposalCard({ proposal, index = 0, isSelected = false, onSelect
     setIsDeleting(true);
     await deleteProposal(proposal.id);
     setIsDeleting(false);
+  };
+
+  const handleRunAnalysis = async () => {
+    setIsAnalyzing(true);
+    try {
+      await proposalsApi.analyze(proposal.id);
+      toast({
+        title: "Analysis Complete",
+        description: "The proposal has been analyzed successfully.",
+      });
+      await refreshProposals();
+    } catch (error) {
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze the proposal. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -112,11 +136,14 @@ export function ProposalCard({ proposal, index = 0, isSelected = false, onSelect
             Review
           </Link>
         </Button>
-        <Button variant="outline" asChild size="sm">
-          <Link to={`/proposals/${proposal.id}`}>
-            <FileText className="w-4 h-4 mr-1.5" />
-            Details
-          </Link>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleRunAnalysis}
+          disabled={isAnalyzing}
+        >
+          <Sparkles className="w-4 h-4 mr-1.5" />
+          {isAnalyzing ? "Analyzing..." : "Run Analysis"}
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>

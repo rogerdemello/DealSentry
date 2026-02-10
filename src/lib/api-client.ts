@@ -76,10 +76,34 @@ export interface AuditLog {
 export const NETWORK_ERROR_MESSAGE =
   'Cannot reach the server. Make sure the API is running (e.g. run "npm run server" or use start.bat).';
 
-// Helper for API calls
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  retryDelay: 1000, // 1 second
+  retryableStatuses: [408, 429, 500, 502, 503, 504],
+};
+
+// Helper function to wait/delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Health check function to verify API server is reachable
+export async function checkApiHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Helper for API calls with retry logic
 async function apiCall<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  retryCount = 0
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -103,7 +127,22 @@ async function apiCall<T>(
       msg === 'Failed to fetch' ||
       msg === 'Load failed' ||
       /network|fetch|connection|refused/i.test(msg);
+    
+    // Retry network errors
+    if (isNetworkError && retryCount < RETRY_CONFIG.maxRetries) {
+      console.log(`Network error, retrying... (${retryCount + 1}/${RETRY_CONFIG.maxRetries})`);
+      await delay(RETRY_CONFIG.retryDelay * (retryCount + 1)); // Exponential backoff
+      return apiCall<T>(endpoint, options, retryCount + 1);
+    }
+    
     throw new Error(isNetworkError ? NETWORK_ERROR_MESSAGE : msg);
+  }
+
+  // Retry on specific HTTP status codes
+  if (!response.ok && RETRY_CONFIG.retryableStatuses.includes(response.status) && retryCount < RETRY_CONFIG.maxRetries) {
+    console.log(`HTTP ${response.status} error, retrying... (${retryCount + 1}/${RETRY_CONFIG.maxRetries})`);
+    await delay(RETRY_CONFIG.retryDelay * (retryCount + 1));
+    return apiCall<T>(endpoint, options, retryCount + 1);
   }
 
   if (!response.ok) {
@@ -124,6 +163,12 @@ export const proposalsApi = {
     apiCall<Proposal>('/api/proposals', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  
+  generateFromNaturalLanguage: (naturalLanguageQuery: string) =>
+    apiCall<Proposal>('/api/proposals/generate', {
+      method: 'POST',
+      body: JSON.stringify({ naturalLanguageQuery }),
     }),
   
   updateStatus: (id: string, status: Proposal['status']) =>
