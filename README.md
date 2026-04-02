@@ -115,8 +115,8 @@ A complete proposal lifecycle management platform with AI-powered risk analysis,
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/proposal-reviewer.git
-cd proposal-reviewer
+git clone https://github.com/rogerdemello/DealSentry.git
+cd DealSentry
 
 # Install dependencies
 npm install
@@ -312,7 +312,7 @@ The application will automatically monitor the API connection and notify you if 
 ## 🗂️ Project Structure
 
 ```
-proposal-reviewer/
+DealSentry/
 ├── src/
 │   ├── pages/              # React pages/routes
 │   │   ├── Dashboard.tsx   # Main dashboard
@@ -881,7 +881,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 🗂️ Project Structure
 
 ```
-proposal-reviewer/
+DealSentry/
 ├── prisma/
 │   └── schema.prisma          # Database schema
 ├── src/
