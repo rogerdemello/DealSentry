@@ -6,10 +6,10 @@ async function seed() {
   try {
     // Create demo users
     const adminUser = await prisma.user.upsert({
-      where: { email: 'admin@reviewer.ai' },
+      where: { email: 'admin@dealsentry.ai' },
       update: {},
       create: {
-        email: 'admin@reviewer.ai',
+        email: 'admin@dealsentry.ai',
         name: 'Admin User',
         role: 'ADMIN',
       },
@@ -17,11 +17,11 @@ async function seed() {
 
     // Create 5 test users
     const testUsers = [
-      { email: 'test1@reviewer.ai', name: 'Test User 1' },
-      { email: 'test2@reviewer.ai', name: 'Test User 2' },
-      { email: 'test3@reviewer.ai', name: 'Test User 3' },
-      { email: 'test4@reviewer.ai', name: 'Test User 4' },
-      { email: 'test5@reviewer.ai', name: 'Test User 5' },
+      { email: 'test1@dealsentry.ai', name: 'Test User 1' },
+      { email: 'test2@dealsentry.ai', name: 'Test User 2' },
+      { email: 'test3@dealsentry.ai', name: 'Test User 3' },
+      { email: 'test4@dealsentry.ai', name: 'Test User 4' },
+      { email: 'test5@dealsentry.ai', name: 'Test User 5' },
     ];
 
     for (const testUser of testUsers) {

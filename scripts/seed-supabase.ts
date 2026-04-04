@@ -12,7 +12,7 @@ async function seed() {
     const { data: existingAdmin } = await supabase
       .from('User')
       .select('id')
-      .eq('email', 'admin@reviewer.ai')
+      .eq('email', 'admin@dealsentry.ai')
       .single();
 
     let adminUser;
@@ -21,7 +21,7 @@ async function seed() {
         .from('User')
         .insert({
           id: randomUUID(),
-          email: 'admin@reviewer.ai',
+          email: 'admin@dealsentry.ai',
           name: 'Admin User',
           role: 'ADMIN',
           updatedAt: new Date().toISOString(),
@@ -37,11 +37,11 @@ async function seed() {
 
     // Create 5 test users
     const testUsers = [
-      { email: 'test1@reviewer.ai', name: 'Test User 1' },
-      { email: 'test2@reviewer.ai', name: 'Test User 2' },
-      { email: 'test3@reviewer.ai', name: 'Test User 3' },
-      { email: 'test4@reviewer.ai', name: 'Test User 4' },
-      { email: 'test5@reviewer.ai', name: 'Test User 5' },
+      { email: 'test1@dealsentry.ai', name: 'Test User 1' },
+      { email: 'test2@dealsentry.ai', name: 'Test User 2' },
+      { email: 'test3@dealsentry.ai', name: 'Test User 3' },
+      { email: 'test4@dealsentry.ai', name: 'Test User 4' },
+      { email: 'test5@dealsentry.ai', name: 'Test User 5' },
     ];
 
     for (const testUser of testUsers) {
@@ -614,7 +614,7 @@ GlobalFinance Ltd requires comprehensive consulting and implementation services 
 
     console.log('\n🎉 Seed completed successfully!');
     console.log('\n📊 Summary:');
-    console.log('- Users: 6 (1 admin: admin@reviewer.ai, 5 test users: test1-5@reviewer.ai)');
+    console.log('- Users: 6 (1 admin: admin@dealsentry.ai, 5 test users: test1-5@dealsentry.ai)');
     console.log('- Rules:', rules.length);
     console.log('- Templates:', templates.length);
     console.log('- Proposals:', proposals.length);

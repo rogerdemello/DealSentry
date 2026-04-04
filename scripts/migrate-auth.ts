@@ -70,7 +70,7 @@ async function runMigration() {
       // Create default admin user
       console.log('📝 Creating default admin user...');
 
-      const defaultEmail = 'admin@proposal-reviewer.com';
+      const defaultEmail = 'admin@dealsentry.com';
       const defaultPassword = 'Admin@123';
       const hashedPassword = await bcrypt.hash(defaultPassword, SALT_ROUNDS);
 

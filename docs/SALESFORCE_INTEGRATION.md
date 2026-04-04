@@ -1,6 +1,6 @@
 # Salesforce Integration Steps
 
-This guide explains how to connect Proposal Reviewer to Salesforce so you can sync **open Opportunities** into proposals.
+This guide explains how to connect DealSentry to Salesforce so you can sync **open Opportunities** into proposals.
 
 ---
 
@@ -26,7 +26,7 @@ This guide explains how to connect Proposal Reviewer to Salesforce so you can sy
 2. Go to **Setup** (gear icon) → **Setup** (opens in new tab). In the left **Quick Find** box, type **App Manager** and open **App Manager**.
 3. Click **New Connected App** (top right).
 4. Fill in:
-   - **Connected App Name**: e.g. `Proposal Reviewer`
+   - **Connected App Name**: e.g. `DealSentry`
    - **API Name**: auto-filled
    - **Contact Email**: your email
 5. Enable **OAuth Settings**:
@@ -92,7 +92,7 @@ npm run dev       # Frontend (e.g. 8080)
 
 1. On the **Integrations** page, with Salesforce connected, click **Sync** (or the sync action for Salesforce).
 2. The app fetches **open Opportunities** (not closed) from Salesforce (up to 100, by last modified).
-3. New opportunities are created as **proposals** in Proposal Reviewer with:
+3. New opportunities are created as **proposals** in DealSentry with:
    - Title = Opportunity Name  
    - Content = Opportunity Description (or a short summary if empty)  
    - Metadata: Account name, Amount, Stage, Close Date, `opportunityId`, etc.
@@ -145,7 +145,7 @@ If your org is locked down by an admin:
 
 - Sign up for a free [Salesforce Developer Edition](https://developer.salesforce.com/signup) (or Trial).
 - In that org you’ll have **System Administrator** with **Manage Connected Apps**.
-- Create the Connected App there and use its Consumer Key/Secret in Proposal Reviewer.
+- Create the Connected App there and use its Consumer Key/Secret in DealSentry.
 - For local testing, callback URL: `http://localhost:3001/api/oauth/salesforce/callback`.
 - Set `SALESFORCE_SANDBOX="false"` for Developer Edition (it uses login.salesforce.com).
 
@@ -153,7 +153,7 @@ If your org is locked down by an admin:
 
 If you’re in a company org and can’t get the permissions above:
 
-- Ask an admin to create a **Connected App** for “Proposal Reviewer” with:
+- Ask an admin to create a **Connected App** for "DealSentry" with:
   - Callback URL: `http://localhost:3001/api/oauth/salesforce/callback` (or your production callback).
   - OAuth scopes: **api**, **refresh_token**.
 - They can then give you the **Consumer Key** and **Consumer Secret** (from **Manage Consumer Details**) to put in your `.env` as `SALESFORCE_CLIENT_ID` and `SALESFORCE_CLIENT_SECRET`. You don’t need to create the app yourself.

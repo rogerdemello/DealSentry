@@ -14,6 +14,11 @@ export default defineConfig(({ mode }) => ({
       "/api": {
         target: "http://localhost:3001",
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", () => {
+            // suppress ECONNREFUSED noise during backend startup
+          });
+        },
       },
     },
   },

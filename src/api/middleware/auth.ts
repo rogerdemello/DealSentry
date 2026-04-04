@@ -59,6 +59,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     };
     next();
   } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Session expired', code: 'TOKEN_EXPIRED' });
+      return;
+    }
+    if (err instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ error: 'Invalid token', code: 'INVALID_TOKEN' });
+      return;
+    }
     console.error('Auth middleware error:', err);
     res.status(401).json({ error: 'Invalid token' });
   }

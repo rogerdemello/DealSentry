@@ -55,13 +55,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     // Allow access to home page and auth pages without authentication
     const publicPaths = ["/", "/login", "/auth", "/signup"];
     if (!loggedIn && !publicPaths.includes(location.pathname)) {
-      navigate("/auth");
+      navigate("/login", { replace: true, state: { from: location } });
     }
   }, [location.pathname, navigate]);
 
   const handleLogout = () => {
     clearAuthData();
-    navigate("/auth");
+    navigate("/");
   };
 
   // Don't show sidebar on auth pages or home page

@@ -1,7 +1,7 @@
 # Compliance Rules - Example Configuration
 
 ## Overview
-This document outlines the 18 compliance rules configured for the Proposal Reviewer system. These rules are automatically checked against every proposal to ensure compliance with pricing policies, legal requirements, and structural standards.
+This document outlines the 18 compliance rules configured for the DealSentry system. These rules are automatically checked against every proposal to ensure compliance with pricing policies, legal requirements, and structural standards.
 
 ---
 

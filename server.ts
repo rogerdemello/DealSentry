@@ -30,7 +30,14 @@ const PORT = process.env.API_PORT || 3001;
 // In production: only allows PRODUCTION_URL from environment variable
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const allowedOrigins = isDevelopment
-  ? ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080']
+  ? [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:8080',
+    ]
   : [process.env.PRODUCTION_URL || 'https://your-production-domain.com'];
 
 // Middleware

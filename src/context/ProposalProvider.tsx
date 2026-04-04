@@ -1,99 +1,133 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { proposalsApi, Proposal } from "@/lib/api-client";
+import React, { useState, useEffect, ReactNode } from "react";
+import { useLocation } from "react-router-dom";
+import { proposalsApi, Proposal, ApiError } from "@/lib/api-client";
+import { clearAuthData, isAuthenticated, getAuthToken } from "@/lib/auth-utils";
 import { mockProposals } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { ProposalContext } from "@/context/proposal-context";
 
-type ProposalStatus = 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
-
-interface ProposalContextType {
-  proposals: Proposal[];
-  loading: boolean;
-  error: string | null;
-  getProposal: (id: string) => Proposal | undefined;
-  updateProposalStatus: (id: string, status: ProposalStatus) => Promise<void>;
-  addProposal: (proposal: Omit<Proposal, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Proposal | null>;
-  deleteProposal: (id: string) => Promise<void>;
-  analyzeProposal: (id: string) => Promise<void>;
-  refreshProposals: () => Promise<void>;
-  isApiConnected: boolean;
-}
-
-const ProposalContext = createContext<ProposalContextType | undefined>(undefined);
+type ProposalStatus = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
 
 export function ProposalProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const location = useLocation();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApiConnected, setIsApiConnected] = useState(false);
   const [hasShownOfflineWarning, setHasShownOfflineWarning] = useState(false);
 
-  // Fetch proposals on mount with retry logic
   useEffect(() => {
     let retryCount = 0;
+    let cancelled = false;
     const maxRetries = 10;
-    const retryDelay = 2000; // 2 seconds
+    const retryDelay = 2000;
 
     const attemptFetch = async () => {
-      const success = await fetchProposals();
-      
-      if (!success && retryCount < maxRetries) {
+      const outcome = await fetchProposals();
+      if (cancelled) return;
+
+      if (outcome === "skipped" || outcome === "unauthorized") {
+        return;
+      }
+      if (outcome === "ok") {
+        return;
+      }
+
+      if (retryCount < maxRetries) {
         retryCount++;
         console.log(`API connection failed, retrying... (${retryCount}/${maxRetries})`);
         setTimeout(attemptFetch, retryDelay);
-      } else if (!success && retryCount >= maxRetries && !hasShownOfflineWarning) {
+      } else if (!hasShownOfflineWarning) {
         setHasShownOfflineWarning(true);
         toast({
           title: "Offline Mode",
-          description: "Running with mock data. Please check your API server.",
+          description:
+            "Running with mock data. Ensure the API is running (e.g. npm run server) and try signing in again.",
           variant: "destructive",
         });
       }
     };
 
     attemptFetch();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname]);
 
-  // Periodic API connectivity check (every 30 seconds)
   useEffect(() => {
-    if (!isApiConnected) {
-      const interval = setInterval(async () => {
-        console.log('Checking API connectivity...');
-        const connected = await fetchProposals(true); // Silent retry
-        if (connected && !isApiConnected) {
-          toast({
-            title: "Connected",
-            description: "API connection restored",
-          });
-        }
-      }, 30000);
-
-      return () => clearInterval(interval);
+    if (isApiConnected || !isAuthenticated()) {
+      return;
     }
-  }, [isApiConnected]);
+    const interval = setInterval(async () => {
+      if (!isAuthenticated()) return;
+      console.log("Checking API connectivity...");
+      const outcome = await fetchProposals(true);
+      if (outcome === "ok" && !isApiConnected) {
+        toast({
+          title: "Connected",
+          description: "API connection restored",
+        });
+      }
+    }, 30000);
 
-  const fetchProposals = async (silent = false) => {
+    return () => clearInterval(interval);
+  }, [isApiConnected, location.pathname]);
+
+  const fetchProposals = async (
+    silent = false
+  ): Promise<"ok" | "unauthorized" | "offline" | "skipped"> => {
+    if (!isAuthenticated()) {
+      if (!silent) {
+        setLoading(false);
+      }
+      setError(null);
+      setProposals([]);
+      setIsApiConnected(false);
+      return "skipped";
+    }
+
     if (!silent) {
       setLoading(true);
     }
     setError(null);
-    
+
     try {
       const data = await proposalsApi.getAll();
       setProposals(data);
       setIsApiConnected(true);
-      return true;
+      return "ok";
     } catch (err) {
-      if (!silent) {
-        console.warn('API not available, using mock data:', err);
+      if (err instanceof ApiError && err.status === 401) {
+        if (!silent) {
+          console.warn("Session not accepted for proposals API:", err.message);
+        }
+        setProposals([]);
+        setIsApiConnected(true);
+        if (getAuthToken()) {
+          clearAuthData();
+          if (typeof window !== "undefined") {
+            const p = window.location.pathname;
+            const publicLanding =
+              p === "/" || /^\/(login|signup|auth)(\/|$)/.test(p);
+            if (!publicLanding) {
+              window.location.assign("/login");
+            }
+          }
+        }
+        return "unauthorized";
       }
-      // Fall back to mock data if API is not available
-      setProposals(mockProposals.map(p => ({
-        ...p,
-        riskReport: undefined,
-      })) as Proposal[]);
+      if (!silent) {
+        console.warn("API not available, using mock data:", err);
+      }
+      setProposals(
+        mockProposals.map((p) => ({
+          ...p,
+          riskReport: undefined,
+        })) as Proposal[]
+      );
       setIsApiConnected(false);
-      return false;
+      return "offline";
     } finally {
       if (!silent) {
         setLoading(false);
@@ -101,16 +135,13 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshProposals = async () => {
-    return await fetchProposals();
-  };
+  const refreshProposals = () => fetchProposals();
 
   const getProposal = (id: string) => {
     return proposals.find((p) => p.id === id);
   };
 
   const updateProposalStatus = async (id: string, status: ProposalStatus) => {
-    // Optimistic update
     setProposals((prev) =>
       prev.map((p) =>
         p.id === id
@@ -123,19 +154,20 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
       try {
         await proposalsApi.updateStatus(id, status);
       } catch (err) {
-        console.error('Failed to update status:', err);
+        console.error("Failed to update status:", err);
         toast({
           title: "Error",
           description: "Failed to update proposal status",
           variant: "destructive",
         });
-        // Revert on error
         await fetchProposals();
       }
     }
   };
 
-  const addProposal = async (proposalData: Omit<Proposal, 'id' | 'createdAt' | 'updatedAt'>): Promise<Proposal | null> => {
+  const addProposal = async (
+    proposalData: Omit<Proposal, "id" | "createdAt" | "updatedAt">
+  ): Promise<Proposal | null> => {
     if (isApiConnected) {
       let createdProposal: Proposal | null = null;
       try {
@@ -145,7 +177,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
           metadata: proposalData.metadata,
         });
         createdProposal = newProposal;
-        // Add to list immediately so the proposal is visible even if analysis fails
         setProposals((prev) => [newProposal, ...prev]);
 
         toast({
@@ -162,13 +193,13 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
         });
         return updatedProposal;
       } catch (err) {
-        console.error('Create/analyze proposal error:', err);
+        console.error("Create/analyze proposal error:", err);
         if (createdProposal) {
-          // Proposal was created; ensure list is in sync and still allow navigation to review
           await fetchProposals();
           toast({
             title: "Proposal created",
-            description: "Analysis could not be completed. You can run it from the review page.",
+            description:
+              "Analysis could not be completed. You can run it from the review page.",
             variant: "destructive",
           });
           return await proposalsApi.getById(createdProposal.id).catch(() => createdProposal);
@@ -181,7 +212,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
         return null;
       }
     } else {
-      // Fallback for offline mode
       const newProposal: Proposal = {
         id: Date.now().toString(),
         ...proposalData,
@@ -194,7 +224,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProposal = async (id: string) => {
-    // Optimistic update
     setProposals((prev) => prev.filter((p) => p.id !== id));
 
     if (isApiConnected) {
@@ -205,13 +234,12 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
           description: "Proposal deleted successfully",
         });
       } catch (err) {
-        console.error('Failed to delete proposal:', err);
+        console.error("Failed to delete proposal:", err);
         toast({
           title: "Error",
           description: "Failed to delete proposal",
           variant: "destructive",
         });
-        // Revert on error
         await fetchProposals();
       }
     } else {
@@ -226,32 +254,24 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     if (!isApiConnected) {
       return;
     }
-    
+
     try {
-      const result = await proposalsApi.analyze(id);
-      
-      // Fetch the updated proposal from API to get all fields
+      await proposalsApi.analyze(id);
       const updatedProposal = await proposalsApi.getById(id);
-      
-      // Update the local proposal with fresh data
-      setProposals((prev) =>
-        prev.map((p) =>
-          p.id === id ? updatedProposal : p
-        )
-      );
+      setProposals((prev) => prev.map((p) => (p.id === id ? updatedProposal : p)));
     } catch (err) {
-      throw err; // Re-throw to allow UI to handle error
+      throw err;
     }
   };
 
   return (
     <ProposalContext.Provider
-      value={{ 
-        proposals, 
-        loading, 
+      value={{
+        proposals,
+        loading,
         error,
-        getProposal, 
-        updateProposalStatus, 
+        getProposal,
+        updateProposalStatus,
         addProposal,
         deleteProposal,
         analyzeProposal,
@@ -262,12 +282,4 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
       {children}
     </ProposalContext.Provider>
   );
-}
-
-export function useProposals() {
-  const context = useContext(ProposalContext);
-  if (context === undefined) {
-    throw new Error("useProposals must be used within a ProposalProvider");
-  }
-  return context;
 }

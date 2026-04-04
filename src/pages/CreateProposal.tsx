@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useProposals } from "@/context/ProposalContext";
+import { useProposals } from "@/context/useProposals";
 import { useToast } from "@/hooks/use-toast";
 import { proposalsApi } from "@/lib/api-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function CreateProposal() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { addProposal, isApiConnected, refreshProposals } = useProposals();
+  const { addProposal, analyzeProposal, isApiConnected, refreshProposals } = useProposals();
   
   // Manual form fields
   const [companyName, setCompanyName] = useState("");
@@ -51,6 +51,25 @@ export default function CreateProposal() {
           title: "Proposal generated",
           description: "AI has created your proposal successfully!",
         });
+
+        // Automatically run analysis on the newly created proposal
+        if (isApiConnected) {
+          toast({
+            title: "Running analysis",
+            description: "AI is analyzing your proposal for compliance...",
+          });
+          
+          // Trigger analysis (non-blocking)
+          analyzeProposal(newProposal.id).catch(err => {
+            console.error('Analysis failed:', err);
+            toast({
+              title: "Analysis failed",
+              description: "The proposal was created but analysis could not be completed.",
+              variant: "destructive",
+            });
+          });
+        }
+
         navigate(`/proposals/${newProposal.id}/review`);
       }
     } catch (err) {

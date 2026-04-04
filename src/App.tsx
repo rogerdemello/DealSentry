@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ProposalProvider } from "@/context/ProposalContext";
+import { ProposalProvider } from "@/context/ProposalProvider";
 import { useApiConnection } from "@/hooks/use-api-connection";
 import ClientLayout from "@/components/layout/ClientLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -53,15 +53,15 @@ function AppContent() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ProposalProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <BrowserRouter>
+      <ProposalProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
           <AppContent />
-        </BrowserRouter>
-      </TooltipProvider>
-    </ProposalProvider>
+        </TooltipProvider>
+      </ProposalProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

@@ -1,4 +1,4 @@
-# 🚀 Quick Start Guide - Proposal Reviewer
+# 🚀 Quick Start Guide - DealSentry
 
 ## ✅ System Status
 
@@ -35,12 +35,12 @@ The app will open at `http://localhost:5173`
 **Demo Accounts Available:**
 
 - **Admin User**
-  - Email: `admin@reviewer.ai`
+  - Email: `admin@dealsentry.ai`
   - Password: `demo`
   - Access: Full system access, audit logs, user management
 
 - **Test Users** (5 users)
-  - Emails: `test1@reviewer.ai` through `test5@reviewer.ai`
+  - Emails: `test1@dealsentry.ai` through `test5@dealsentry.ai`
   - Password: `demo` (for all test users)
   - Access: Create proposals, review, integrations
 
@@ -86,7 +86,7 @@ The app will open at `http://localhost:5173`
 
 ### 📋 Sample Data Included
 
-- **6 Users** (1 admin: admin@reviewer.ai, 5 test users: test1-5@reviewer.ai)
+- **6 Users** (1 admin: admin@dealsentry.ai, 5 test users: test1-5@dealsentry.ai)
 - **8 Compliance Rules** (discount limits, legal clauses, etc.)
 - **4 Templates** (Sales Proposal, MSA, SOW, NDA)
 - **3 Sample Proposals** (with risk reports)
@@ -202,7 +202,7 @@ The application automatically restricts CORS based on environment:
 ## �📁 Project Structure
 
 ```
-proposal-reviewer/
+dealsentry/
 ├── src/
 │   ├── api/              # Backend API routes
 │   │   ├── auth.ts       # Authentication endpoints

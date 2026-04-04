@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useProposals } from "@/context/ProposalContext";
+import { useProposals } from "@/context/useProposals";
 import { formatDistanceToNowIST } from "@/lib/utils";
 import { useState } from "react";
 import { proposalsApi } from "@/lib/api-client";

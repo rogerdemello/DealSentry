@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo  Stopping Proposal Reviewer Servers
+echo  Stopping DealSentry Servers
 echo ========================================
 echo.
 

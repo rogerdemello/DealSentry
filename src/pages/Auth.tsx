@@ -156,7 +156,7 @@ export default function Auth() {
     setName("");
     setAcceptedTerms(false);
     // Update URL without navigation
-    navigate(newMode === "login" ? "/auth" : "/signup", { replace: true });
+    navigate(newMode === "login" ? "/login" : "/signup", { replace: true });
   };
 
   return (

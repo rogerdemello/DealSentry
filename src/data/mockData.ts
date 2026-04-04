@@ -128,7 +128,7 @@ export const mockAuditLogs: AuditLog[] = [
     action: "Blocked proposal with critical risk score",
     timestamp: "2026-01-25T10:20:00Z",
     actorId: "system",
-    actor: { name: "System", email: "system@reviewer.ai", role: "ADMIN" },
+    actor: { name: "System", email: "system@dealsentry.ai", role: "ADMIN" },
     proposalId: "3",
     proposal: { title: "Professional Services Agreement" },
   },

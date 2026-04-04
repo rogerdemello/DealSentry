@@ -30,7 +30,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { RiskBar } from "@/components/ui/RiskBar";
-import { useProposals } from "@/context/ProposalContext";
+import { getApiBaseUrl } from "@/lib/api-client";
+import { useProposals } from "@/context/useProposals";
 import { Finding, Recommendation } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatIST } from "@/lib/utils";
@@ -118,8 +119,8 @@ export default function ProposalReview() {
 
   const handleExportPdf = async () => {
     try {
-      const apiOrigin = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const url = `${apiOrigin}/api/proposals/${proposal.id}/export/pdf`;
+      const base = getApiBaseUrl();
+      const url = `${base}/api/proposals/${proposal.id}/export/pdf`;
       const token = localStorage.getItem('auth_token');
       
       toast({ title: 'Exporting PDF', description: 'Generating your PDF...' });
