@@ -105,7 +105,7 @@ export default function Home() {
             </motion.div>
             
             <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground mb-4 tracking-tight">
-              Proposal Reviewer
+              DealSentry
               <span className="block mt-2 gradient-text">Enterprise Suite</span>
             </h1>
             
@@ -115,10 +115,13 @@ export default function Home() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button asChild size="lg" className="text-base px-8">
-                <Link to="/auth">
+                <Link to="/signup">
                   Get Started
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
+              </Button>
+              <Button asChild variant="secondary" size="lg" className="text-base px-8">
+                <Link to="/login">Sign in</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="text-base px-8">
                 <Link to="/dashboard">
@@ -225,10 +228,10 @@ export default function Home() {
               Ready to Get Started?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join enterprise teams who trust Proposal Reviewer to streamline their proposal process
+              Join enterprise teams who trust DealSentry to streamline their proposal process
             </p>
             <Button asChild size="lg" className="text-base px-8">
-              <Link to="/auth">
+              <Link to="/login">
                 Sign In to Continue
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>

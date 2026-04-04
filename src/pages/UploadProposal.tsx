@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { useProposals } from "@/context/ProposalContext";
+import { useProposals } from "@/context/useProposals";
 import mammoth from "mammoth";
 
 export default function UploadProposal() {
@@ -26,11 +26,23 @@ export default function UploadProposal() {
   const handleRetryConnection = async () => {
     setIsRetrying(true);
     try {
-      const connected = await refreshProposals();
-      if (connected) {
+      const outcome = await refreshProposals();
+      if (outcome === "ok") {
         toast({
           title: "Connected",
           description: "API connection restored successfully",
+        });
+      } else if (outcome === "skipped") {
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to connect to the API.",
+          variant: "destructive",
+        });
+      } else if (outcome === "unauthorized") {
+        toast({
+          title: "Session required",
+          description: "Please sign in again to use the API.",
+          variant: "destructive",
         });
       } else {
         toast({

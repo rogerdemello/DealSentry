@@ -9,16 +9,16 @@
 ## User List
 
 ### Admin User
-- **Email:** `admin@reviewer.ai`
+- **Email:** `admin@dealsentry.ai`
 - **Password:** `ChangeMe@123`
 - **Role:** ADMIN
 
 ### Sales Representatives
-1. **Email:** `demo@reviewer.ai`
+1. **Email:** `demo@dealsentry.ai`
    - **Password:** `ChangeMe@123`
    - **Role:** SALES_REP
 
-2. **Email:** `test@reviewer.ai`
+2. **Email:** `test@dealsentry.ai`
    - **Password:** `ChangeMe@123`
    - **Role:** SALES_REP
 

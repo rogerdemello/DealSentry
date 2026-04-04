@@ -1,4 +1,35 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
+import { clearAuthData } from '@/lib/auth-utils';
+
+/** Thrown for non-OK HTTP responses so callers can distinguish 401 from network failures. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/**
+ * Base URL for API calls from the browser.
+ * - If `VITE_API_URL` is set, use it (separate API host, e.g. production).
+ * - Otherwise in the browser use "" so requests are same-origin (`/api/...`) and the Vite dev proxy forwards to Express (avoids CORS and localhost vs 127.0.0.1 mismatches).
+ * - In Node/SSR fall back to localhost.
+ */
+export function getApiBaseUrl(): string {
+  const raw = import.meta.env.VITE_API_URL;
+  if (raw != null && String(raw).trim() !== '') {
+    return String(raw).replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+  return 'http://localhost:3001';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Type definitions
 export interface Proposal {
@@ -146,8 +177,26 @@ async function apiCall<T>(
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `API error: ${response.status}`);
+    const error = (await response.json().catch(() => ({ error: 'Request failed' }))) as {
+      error?: string;
+      code?: string;
+    };
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const isAuthPage = /^\/(auth|login|signup)(\/|$)/.test(path);
+    if (
+      response.status === 401 &&
+      (error.code === 'TOKEN_EXPIRED' || error.code === 'INVALID_TOKEN') &&
+      typeof window !== 'undefined' &&
+      !isAuthPage
+    ) {
+      clearAuthData();
+      window.location.assign('/login');
+    }
+    throw new ApiError(
+      error.error || `API error: ${response.status}`,
+      response.status,
+      error.code
+    );
   }
 
   return response.json();

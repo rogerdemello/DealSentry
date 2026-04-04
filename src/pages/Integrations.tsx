@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { mockIntegrations } from "@/data/mockData";
 import { Integration } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { useProposals } from "@/context/ProposalContext";
+import { useProposals } from "@/context/useProposals";
+import { getApiBaseUrl } from "@/lib/api-client";
 import { formatDistanceToNowIST } from "@/lib/utils";
 
 const integrationConfig = {
@@ -58,9 +59,9 @@ export default function Integrations() {
   // Fetch integrations from API
   const fetchIntegrations = async () => {
     try {
-      const apiOrigin = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+      const base = getApiBaseUrl();
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`${apiOrigin}/api/integrations`, {
+      const res = await fetch(`${base}/api/integrations`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Failed to load integrations');
@@ -197,7 +198,7 @@ export default function Integrations() {
       GMAIL: '/api/oauth/gmail/authorize',
     };
 
-    const apiOrigin = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+    const base = getApiBaseUrl();
     const url = oauthUrls[integration.type];
     if (url) {
       const token = localStorage.getItem('auth_token');
@@ -210,7 +211,7 @@ export default function Integrations() {
         setConnecting(null);
         return;
       }
-      window.location.href = `${apiOrigin}${url}?token=${encodeURIComponent(token)}`;
+      window.location.href = `${base}${url}?token=${encodeURIComponent(token)}`;
     } else {
       setConnecting(null);
     }
@@ -228,9 +229,9 @@ export default function Integrations() {
     // Update server-side Integration record
     (async () => {
       try {
-        const apiOrigin = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+        const base = getApiBaseUrl();
         const token = localStorage.getItem('auth_token');
-        const res = await fetch(`${apiOrigin}/api/integrations/${integration.id}`, {
+        const res = await fetch(`${base}/api/integrations/${integration.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -256,9 +257,9 @@ export default function Integrations() {
     setSyncing(integration.id);
 
     try {
-      const apiOrigin = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001';
+      const base = getApiBaseUrl();
       const token = localStorage.getItem('auth_token');
-      const res = await fetch(`${apiOrigin}/api/integrations/${integration.id}/sync`, {
+      const res = await fetch(`${base}/api/integrations/${integration.id}/sync`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

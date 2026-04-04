@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Upload, FileText, TrendingUp, AlertTriangle, ArrowRight, Clock, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProposalCard } from "@/components/proposals/ProposalCard";
-import { useProposals } from "@/context/ProposalContext";
+import { useProposals } from "@/context/useProposals";
 
 export default function Dashboard() {
   const { proposals } = useProposals();

@@ -48,7 +48,7 @@ npx tsx scripts/migrate-auth.ts
 ```
 
 **Default Admin Credentials:**
-- Email: `admin@proposal-reviewer.com`
+- Email: `admin@dealsentry.com`
 - Password: `Admin@123`
 
 ⚠️ **Change this password immediately after first login!**

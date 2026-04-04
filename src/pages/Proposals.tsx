@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProposalCard } from "@/components/proposals/ProposalCard";
-import { useProposals } from "@/context/ProposalContext";
+import { useProposals } from "@/context/useProposals";
 import { ProposalStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { proposalsApi } from "@/lib/api-client";

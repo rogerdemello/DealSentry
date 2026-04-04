@@ -171,6 +171,14 @@ router.get('/verify', async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Session expired', code: 'TOKEN_EXPIRED' });
+      return;
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ error: 'Invalid token', code: 'INVALID_TOKEN' });
+      return;
+    }
     console.error('Error verifying token:', error);
     res.status(401).json({ error: 'Invalid token' });
   }

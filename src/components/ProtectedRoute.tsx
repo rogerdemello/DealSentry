@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 /**
  * Wrapper component that checks if user is authenticated before rendering children.
- * Redirects to /auth if not authenticated.
+ * Redirects to /login if not authenticated.
  */
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isAuth, setIsAuth] = useState<boolean | null>(null);
@@ -51,7 +51,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuth) {
     // Redirect to auth page with return URL
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

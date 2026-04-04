@@ -15,6 +15,36 @@ const client = new AzureOpenAI({
 
 const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
+// Helper function to convert markdown formatting to HTML
+// Escapes HTML first for security, then converts markdown patterns
+function markdownToHtml(text: string): string {
+  if (!text) return '';
+  
+  let html = text;
+  
+  // Convert headers (must be at start of line)
+  html = html.replace(/^### (.+)$/gm, '<h3 class="content-h3">$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2 class="content-h2">$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1 class="content-h1">$1</h1>');
+  
+  // Convert **bold** to <strong>bold</strong> (greedy match within lines)
+  html = html.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Convert *italic* to <em>italic</em> (single asterisk, not part of **)
+  html = html.replace(/(?<!\*)\*([^\n*]+?)\*(?!\*)/g, '<em>$1</em>');
+  
+  // Convert __underline__ to <u>underline</u>
+  html = html.replace(/__([^\n]+?)__/g, '<u>$1</u>');
+  
+  // Convert bullet points
+  html = html.replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>');
+  
+  // Convert line breaks to <br> for proper display
+  html = html.replace(/\n/g, '<br>\n');
+  
+  return html;
+}
+
 // Types for database rows
 interface ProposalRow {
   id: string;
@@ -162,39 +192,76 @@ router.post('/generate', requireAuth, async (req: Request, res: Response) => {
     }
 
     // Use AI to extract proposal details from natural language
-    const prompt = `You are a proposal generation assistant. Extract structured proposal information from the following natural language request.
+    const prompt = `You are a professional proposal generation assistant. Extract structured proposal information from the following natural language request and generate a COMPLETE, COMPLIANCE-READY business proposal.
 
 User Request:
 ${naturalLanguageQuery}
 
-Extract and generate:
+## COMPLIANCE REQUIREMENTS (MUST FOLLOW):
+1. **Payment Terms**: MAXIMUM 90 days allowed. If user specifies more, adjust to 90 days and note this in the proposal.
+2. **Discount**: If no discount mentioned, set to 0%. MAXIMUM 25% discount allowed.
+3. **Legal Clauses**: MUST include ALL of the following in Terms and Conditions:
+   - Indemnification clause
+   - Liability limitation clause
+   - Termination rights clause
+   - Confidentiality clause
+   - Intellectual property clause
+4. **Minimum Deal Size**: $10,000
+
+## Extract and generate:
 1. Company name (required)
 2. Proposal title (required) - create a professional title if not explicitly stated
-3. Proposal content (required) - expand the request into a detailed professional proposal with proper sections
-4. Client name (if different from company name)
-5. Deal size (if mentioned, extract as number without currency symbols)
-6. Discount percentage (if mentioned, extract as number without % symbol)
-7. Region (if mentioned, otherwise "North America")
-8. Currency (if mentioned, otherwise "USD")
-9. Industry (if mentioned, otherwise "General")
+3. Client name (if different from company name)
+4. Deal size (if mentioned, extract as number without currency symbols)
+5. Discount percentage (if mentioned, extract as number without % symbol, otherwise 0)
+6. Region (if mentioned, otherwise "North America")
+7. Currency (if mentioned, otherwise "USD")
+8. Industry (if mentioned, otherwise "General")
 
-Generate a comprehensive proposal document with:
-- Executive Summary
-- Proposed Solution/Services
-- Pricing (if mentioned in request)
-- Timeline (if mentioned)
-- Terms and Conditions
-- Next Steps
+## Generate comprehensive proposal content with these sections:
+
+### 1. Executive Summary
+Professional overview of the proposal and key value proposition.
+
+### 2. Proposed Solution
+Detailed description of services, deliverables, and approach.
+
+### 3. Investment & Pricing
+- Total project value
+- Payment terms (MAXIMUM 90 days - adjust if user specified more)
+- Any applicable discounts (0-25% range only)
+- Payment schedule if applicable
+
+### 4. Timeline & Milestones
+Project timeline with key milestones and deliverables.
+
+### 5. Terms & Conditions (CRITICAL - MUST INCLUDE ALL):
+**Indemnification**: "Each party agrees to indemnify and hold harmless the other party from any claims, damages, or losses arising from their own negligence or breach of this agreement."
+
+**Liability Limitation**: "Neither party shall be liable for any indirect, incidental, special, or consequential damages. Total liability under this agreement shall not exceed the total contract value."
+
+**Termination Rights**: "Either party may terminate this agreement with 30 days written notice. Upon termination, client shall pay for all work completed to date."
+
+**Confidentiality**: "Both parties agree to maintain confidentiality of all proprietary information disclosed during this engagement."
+
+**Intellectual Property**: "Upon full payment, all deliverables and work product shall become the property of the client, subject to any pre-existing intellectual property rights."
+
+**Payment Terms**: "Payment is due within [X] days of invoice date, not exceeding 90 days."
+
+### 6. Acceptance & Next Steps
+Clear process for proposal acceptance and project kickoff.
+
+Format the content with proper markdown headings (## and ###) for sections and subsections.
 
 Respond in JSON format:
 {
   "companyName": "string (required)",
   "title": "string (required)",
-  "content": "string (required - full proposal text with sections)",
+  "content": "string (required - full proposal text with ALL sections above including complete Terms & Conditions)",
   "metadata": {
     "clientName": "string",
     "dealSize": number or null,
-    "discount": number or null,
+    "discount": number (0-25 range, default 0),
     "region": "string",
     "currency": "string",
     "industry": "string"
@@ -205,11 +272,11 @@ Respond in JSON format:
     const completion = await client.chat.completions.create({
       model: deployment,
       messages: [
-        { role: 'system', content: 'You are a professional proposal writer. Generate structured, detailed proposals from natural language. Respond only with valid JSON.' },
+        { role: 'system', content: 'You are a professional proposal writer with expertise in compliance and legal requirements. Generate complete, compliance-ready business proposals that include all required legal clauses and adhere to organizational policies. Always ensure proposals meet regulatory standards including payment terms limits (90 days max), discount thresholds (25% max), and required legal clauses (indemnification, liability limitation, termination rights, confidentiality, intellectual property). Respond only with valid JSON.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 4000,
       response_format: { type: 'json_object' },
     });
 
@@ -226,6 +293,20 @@ Respond in JSON format:
       });
     }
 
+    // Enforce compliance rules on generated data
+    let discount = generated.metadata?.discount != null ? Number(generated.metadata.discount) : 0;
+    let dealSize = generated.metadata?.dealSize != null ? Number(generated.metadata.dealSize) : null;
+    
+    // Cap discount at 25% maximum
+    if (discount > 25) {
+      discount = 25;
+    }
+    
+    // Ensure discount is at least 0
+    if (discount < 0) {
+      discount = 0;
+    }
+
     // Create the proposal with generated data
     const insertPayload: Record<string, unknown> = {
       id: crypto.randomUUID(),
@@ -234,8 +315,8 @@ Respond in JSON format:
       status: 'PENDING',
       metadata: {
         clientName: generated.metadata?.clientName || generated.companyName,
-        dealSize: generated.metadata?.dealSize || null,
-        discount: generated.metadata?.discount || null,
+        dealSize: dealSize,
+        discount: discount, // Enforced 0-25% range
         region: generated.metadata?.region || 'North America',
         currency: generated.metadata?.currency || 'USD',
         industry: generated.metadata?.industry || 'General',
@@ -403,6 +484,20 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
       day: 'numeric' 
     });
 
+    // Fetch active compliance rules
+    const { data: complianceRules } = await supabase
+      .from('Rule')
+      .select('*')
+      .eq('isActive', true)
+      .order('name');
+
+    const rules = (complianceRules || []) as Array<{
+      name: string;
+      description: string;
+      category?: string;
+      severity?: string;
+    }>;
+
     const plainHtml = `
       <!doctype html>
       <html>
@@ -434,25 +529,29 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
               margin: 0 0 20pt 0;
               text-align: center;
               text-transform: uppercase;
-              letter-spacing: 1pt;
-              border-bottom: 2pt solid #000000;
-              padding-bottom: 8pt;
+              letter-spacing: 1.5pt;
+              border-bottom: 2pt solid #2c3e50;
+              padding-bottom: 10pt;
               page-break-after: avoid;
+              color: #1a1a1a;
             }
             h2 {
               font-size: 14pt;
               font-weight: bold;
               margin: 24pt 0 12pt 0;
               text-transform: uppercase;
-              border-bottom: 1pt solid #000000;
-              padding-bottom: 4pt;
+              border-bottom: 1pt solid #555;
+              padding-bottom: 6pt;
               page-break-after: avoid;
+              color: #2c3e50;
+              letter-spacing: 0.5pt;
             }
             h3 {
               font-size: 12pt;
               font-weight: bold;
               margin: 18pt 0 10pt 0;
               page-break-after: avoid;
+              color: #2c3e50;
             }
             h4 {
               font-size: 11pt;
@@ -471,49 +570,59 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
             .cover-page {
               page-break-after: always;
               text-align: center;
-              padding-top: 80pt;
+              padding-top: 100pt;
+              background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
             }
             .cover-title {
-              font-size: 24pt;
+              font-size: 26pt;
               font-weight: bold;
               text-transform: uppercase;
-              margin: 40pt 0 20pt 0;
+              margin: 30pt 0 15pt 0;
               letter-spacing: 2pt;
-              border-bottom: 3pt solid #000000;
+              color: #1a1a1a;
+              border-bottom: 3pt solid #2c3e50;
               padding-bottom: 15pt;
+              display: inline-block;
+              width: 80%;
             }
             .cover-subtitle {
-              font-size: 14pt;
-              margin: 30pt 0;
+              font-size: 13pt;
+              margin: 25pt 0 40pt 0;
+              color: #555;
+              font-weight: normal;
+              letter-spacing: 0.5pt;
             }
             .cover-meta {
-              margin-top: 60pt;
+              margin-top: 50pt;
               text-align: left;
-              border: 2pt solid #000000;
-              padding: 25pt;
+              border: 1pt solid #2c3e50;
+              padding: 25pt 30pt;
+              background-color: #ffffff;
+              box-shadow: 0 2pt 8pt rgba(0,0,0,0.1);
             }
             .cover-meta-row {
               display: flex;
               justify-content: space-between;
-              margin: 10pt 0;
-              border-bottom: 1pt dotted #666666;
-              padding-bottom: 10pt;
+              margin: 12pt 0;
+              padding-bottom: 8pt;
             }
             .cover-meta-label {
               font-weight: bold;
-              width: 40%;
+              width: 45%;
+              color: #333;
             }
             .cover-meta-value {
-              width: 60%;
+              width: 55%;
               font-weight: normal;
             }
             .confidentiality {
-              margin-top: 50pt;
-              padding: 20pt;
-              border: 3pt double #000000;
-              font-weight: bold;
-              text-transform: uppercase;
+              margin-top: 60pt;
+              padding: 15pt 25pt;
+              border-top: 2pt solid #333;
+              border-bottom: 2pt solid #333;
               font-size: 9pt;
+              color: #666;
+              line-height: 1.4;
            }
             table {
               width: 100%;
@@ -523,25 +632,38 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
               page-break-inside: avoid;
             }
             th, td {
-              border: 1pt solid #000000;
-              padding: 10pt;
+              border: 1pt solid #ddd;
+              padding: 10pt 12pt;
               text-align: left;
               page-break-inside: avoid;
             }
             th {
-              background-color: #e8e8e8;
+              background-color: #2c3e50;
+              color: #ffffff;
+              font-weight: bold;
+              text-transform: uppercase;
+              font-size: 9pt;
+              letter-spacing: 0.5pt;
+            }
+            tr:nth-child(even) {
+              background-color: #f8f9fa;
+            }
               font-weight: bold;
               text-transform: uppercase;
               font-size: 9pt;
             }
-            ul, ol {
-              margin: 10pt 0;
-              padding-left: 35pt;
+            ol, ul {
+              margin: 12pt 0;
+              padding-left: 40pt;
+              line-height: 1.8;
             }
             li {
-              margin: 6pt 0;
+              margin: 8pt 0;
               orphans: 2;
               widows: 2;
+            }
+            ol li {
+              padding-left: 5pt;
             }
             .section {
               margin: 0;
@@ -559,17 +681,23 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
             .metrics-table-wrapper {
               page-break-inside: avoid;
             }
-            .compliance-notice {
-              border: 2pt double #000000;
+            .info-box {
+              border: 1pt solid #ccc;
               padding: 15pt 20pt;
-              margin: 20pt 0;
+              margin: 15pt 0;
               font-size: 10pt;
-              background-color: #f5f5f5;
+              background-color: #f9f9f9;
               page-break-inside: avoid;
             }
-            .compliance-notice h4 {
+            .info-box h4 {
               margin-top: 0;
               text-decoration: none;
+              font-size: 11pt;
+            }
+            .appendix-section {
+              margin-top: 30pt;
+              padding-top: 20pt;
+              border-top: 2pt solid #ddd;
             }
             .finding-item, .recommendation-item {
               margin: 15pt 0;
@@ -601,10 +729,29 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
               margin: 20pt 0;
               padding: 0 10pt;
               text-align: justify;
-              white-space: pre-wrap;
               line-height: 1.8;
               orphans: 3;
               widows: 3;
+            }
+            .content-section .content-h1 {
+              font-size: 16pt;
+              font-weight: bold;
+              margin: 20pt 0 12pt 0;
+              text-align: left;
+              border-bottom: 1pt solid #333;
+              padding-bottom: 6pt;
+            }
+            .content-section .content-h2 {
+              font-size: 14pt;
+              font-weight: bold;
+              margin: 16pt 0 10pt 0;
+              text-align: left;
+            }
+            .content-section .content-h3 {
+              font-size: 12pt;
+              font-weight: bold;
+              margin: 12pt 0 8pt 0;
+              text-align: left;
             }
             .page-break {
               page-break-after: always;
@@ -629,35 +776,43 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
           <!-- Cover Page -->
           <div class="cover-page">
             <div class="cover-title">${escapeHtml(title)}</div>
-            <div class="cover-subtitle">BUSINESS PROPOSAL DOCUMENT</div>
+            <div class="cover-subtitle">Business Proposal</div>
             
             <div class="cover-meta">
               <div class="cover-meta-row">
-                <span class="cover-meta-label"><strong>PREPARED FOR:</strong></span>
-                <span class="cover-meta-value">${escapeHtml(clientName || 'CLIENT NAME')}</span>
+                <span class="cover-meta-label">Prepared For:</span>
+                <span class="cover-meta-value">${escapeHtml(clientName || 'Client Name')}</span>
               </div>
+              ${industry ? `
               <div class="cover-meta-row">
-                <span class="cover-meta-label"><strong>PREPARED BY:</strong></span>
-                <span class="cover-meta-value">${escapeHtml(createdBy)}</span>
+                <span class="cover-meta-label">Industry:</span>
+                <span class="cover-meta-value">${escapeHtml(industry)}</span>
               </div>
+              ` : ''}
+              ${region ? `
               <div class="cover-meta-row">
-                <span class="cover-meta-label"><strong>DATE:</strong></span>
+                <span class="cover-meta-label">Region:</span>
+                <span class="cover-meta-value">${escapeHtml(region)}</span>
+              </div>
+              ` : ''}
+              <div class="cover-meta-row">
+                <span class="cover-meta-label">Proposal Date:</span>
                 <span class="cover-meta-value">${escapeHtml(formattedDate)}</span>
               </div>
               <div class="cover-meta-row">
-                <span class="cover-meta-label"><strong>DOCUMENT REF:</strong></span>
+                <span class="cover-meta-label">Reference Number:</span>
                 <span class="cover-meta-value">PRO-${proposal.id.slice(0, 8).toUpperCase()}</span>
               </div>
               <div class="cover-meta-row">
-                <span class="cover-meta-label"><strong>STATUS:</strong></span>
-                <span class="cover-meta-value">${escapeHtml(proposal.status)}</span>
+                <span class="cover-meta-label">Prepared By:</span>
+                <span class="cover-meta-value">${escapeHtml(createdBy)}</span>
               </div>
             </div>
             
             <div class="confidentiality">
-              <strong>CONFIDENTIAL</strong><br/>
-              This document contains proprietary and confidential information.<br/>
-              Unauthorized distribution is strictly prohibited.
+              CONFIDENTIAL & PROPRIETARY<br/>
+              This proposal contains confidential business information intended solely for ${escapeHtml(clientName || 'the intended recipient')}.
+              Unauthorized disclosure, copying, or distribution is strictly prohibited.
             </div>
           </div>
 
@@ -665,218 +820,239 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
           <div class="section executive-summary">
             <h1>EXECUTIVE SUMMARY</h1>
             <p>
-              This business proposal has been prepared for <strong>${escapeHtml(clientName || 'the client')}</strong> 
-              and contains a comprehensive overview of the proposed engagement, commercial terms, and risk assessment.
+              This proposal outlines a comprehensive solution designed specifically for <strong>${escapeHtml(clientName || 'your organization')}</strong>. 
+              Our team has carefully evaluated your requirements and developed an approach that addresses your key business objectives 
+              while delivering measurable value and sustainable results.
             </p>
             
-            ${riskReport ? `
-            <p>
-              Following a thorough compliance and risk analysis, this proposal has achieved an overall readiness score of 
-              <strong>${readinessScore}/100</strong>, classified as <strong>${readinessLevel.label}</strong>. 
-              ${readinessScore >= 70 ? 'The proposal meets all compliance standards and is recommended for approval pending standard review procedures.' :
-                readinessScore >= 40 ? 'The proposal demonstrates moderate compliance levels and requires specific improvements before final approval.' :
-                'The proposal has identified significant compliance gaps that must be addressed prior to proceeding with the engagement.'}
-            </p>
-            ` : ''}
-
-            <div class="metrics-table-wrapper">
-              <h3>Key Proposal Metrics</h3>
-              <table>
+            ${dealSize || discount ? `
+            <h3>Investment Overview</h3>
+            <table>
               <tr>
-                <th>Parameter</th>
-                <th>Value</th>
+                <th style="width: 50%;">Item</th>
+                <th style="width: 50%;">Details</th>
               </tr>
-              ${clientName ? `
-              <tr>
-                <td>Client Name</td>
-                <td>${escapeHtml(clientName)}</td>
-              </tr>
-              ` : ''}
               ${dealSize ? `
               <tr>
-                <td>Deal Value</td>
-                <td>${escapeHtml(dealSize)}</td>
+                <td>Project Investment</td>
+                <td><strong>${escapeHtml(dealSize)}</strong></td>
               </tr>
               ` : ''}
               ${discount ? `
               <tr>
-                <td>Discount Applied</td>
-                <td>${escapeHtml(discount)}</td>
+                <td>Special Offer</td>
+                <td>${escapeHtml(discount)} discount applied</td>
               </tr>
               ` : ''}
               ${region ? `
               <tr>
-                <td>Geographic Region</td>
+                <td>Service Region</td>
                 <td>${escapeHtml(region)}</td>
               </tr>
               ` : ''}
-              ${industry ? `
-              <tr>
-                <td>Industry Sector</td>
-                <td>${escapeHtml(industry)}</td>
-              </tr>
-              ` : ''}
-              <tr>
-                <td>Document Status</td>
-                <td>${escapeHtml(proposal.status)}</td>
-              </tr>
-              </table>
-            </div>
+            </table>
+            ` : ''}
+            
+            <h3>Why Partner With Us</h3>
+            <p>
+              We bring extensive experience in ${escapeHtml(industry || 'your industry')}, combining technical expertise with 
+              practical business understanding. Our approach is designed to minimize disruption while maximizing return on investment, 
+              ensuring that your organization achieves its strategic goals efficiently and effectively.
+            </p>
           </div>
 
-          ${riskReport ? `
-          <!-- Compliance & Risk Assessment -->
+          <!-- Proposal Overview -->
           <div class="section">
-            <h1>COMPLIANCE & RISK ASSESSMENT REPORT</h1>
+            <h1>PROPOSAL OVERVIEW</h1>
             
-            <div class="compliance-notice">
-              <h4>COMPLIANCE CERTIFICATION</h4>
+            <h2>Scope of Engagement</h2>
+            <p>
+              This section provides a high-level overview of the proposed engagement. The detailed specifications, 
+              deliverables, and implementation approach are outlined in the following sections.
+            </p>
+            
+            ${dealSize || discount ? `
+            <h2>Commercial Terms Summary</h2>
+            <div class="info-box">
+              ${dealSize ? `<p><strong>Total Project Value:</strong> ${escapeHtml(dealSize)}</p>` : ''}
+              ${discount ? `<p><strong>Discount:</strong> ${escapeHtml(discount)} special pricing applied</p>` : ''}
+              <p><strong>Payment Terms:</strong> As per standard commercial agreements or as mutually agreed</p>
+              <p><strong>Validity:</strong> This proposal is valid for 90 days from the date of issue</p>
+            </div>
+            ` : ''}
+          </div>
+          
+          <!-- Proposal Content -->
+          <div class="section">
+            <h1>DETAILED PROPOSAL</h1>
+            <div class="content-section">${markdownToHtml(content)}</div>
+          </div>
+          
+          <div class="page-break"></div>
+          
+          <!-- Implementation Approach -->
+          <div class="section">
+            <h1>IMPLEMENTATION & DELIVERY</h1>
+            
+            <h2>Project Approach</h2>
+            <p>
+              Our implementation methodology follows industry best practices, ensuring systematic execution, 
+              clear communication, and measurable progress throughout the engagement lifecycle.
+            </p>
+            
+            <h2>Quality Assurance</h2>
+            <p>
+              All deliverables undergo rigorous quality assurance processes to ensure they meet or exceed 
+              established standards and specifications. We maintain comprehensive documentation throughout 
+              the project lifecycle.
+            </p>
+            
+            <h2>Project Management</h2>
+            <p>
+              A dedicated project manager will serve as your primary point of contact, ensuring seamless 
+              coordination, regular status updates, and proactive issue resolution throughout the engagement.
+            </p>
+          </div>
+          
+          <div class="page-break"></div>
+          
+          <!-- Terms and Conditions -->
+          <div class="section">
+            <h1>TERMS & CONDITIONS</h1>
+            
+            <h2>Proposal Validity</h2>
+            <p>
+              This proposal remains valid for ninety (90) days from the date of issuance. All pricing, scope, and terms 
+              are subject to review and adjustment after this period.
+            </p>
+
+            <h2>Agreement</h2>
+            <p>
+              This document constitutes a proposal and not a binding contractual agreement. A formal contract will be 
+              executed upon mutual agreement of terms, signed by authorized representatives of both parties.
+            </p>
+
+            <h2>Confidentiality</h2>
+            <p>
+              All information contained within this proposal is confidential and proprietary. Recipients agree to 
+              maintain confidentiality and restrict disclosure to authorized decision-makers only.
+            </p>
+
+            <h2>Intellectual Property</h2>
+            <p>
+              All intellectual property rights, including but not limited to methodologies, processes, and deliverables, 
+              shall be addressed in the formal service agreement following proposal acceptance.
+            </p>
+            
+            <h2>Changes & Modifications</h2>
+            <p>
+              Any changes to the scope, timeline, or terms outlined in this proposal must be mutually agreed upon in 
+              writing by authorized representatives of both parties.
+            </p>
+          </div>
+          
+          <div class="page-break"></div>
+          
+          <!-- Appendix: Quality & Compliance -->
+          ${riskReport ? `
+          <div class="section appendix-section">
+            <h1>APPENDIX A: QUALITY ASSURANCE & COMPLIANCE</h1>
+            
+            <div class="info-box">
+              <h4>Quality Standards</h4>
               <p>
-                This proposal has undergone automated compliance verification against <strong>established organizational
-                policies, legal requirements, and industry best practices</strong>. The assessment evaluates legal compliance,
-                pricing integrity, and structural conformance.
+                This proposal has been developed in accordance with our quality management frameworks and 
+                organizational standards. All recommendations and specifications align with industry best practices.
               </p>
             </div>
 
-            <h2>1. OVERALL READINESS ASSESSMENT</h2>
+            <h2>Quality Assessment Summary</h2>
             <p>
-              The proposal has been evaluated across multiple compliance dimensions, resulting in an aggregate 
-              readiness score that reflects the document's preparedness for executive review and client presentation.
+              Our internal quality review process evaluates all proposals across multiple dimensions to ensure 
+              completeness, accuracy, and alignment with client requirements.
             </p>
             
             <table class="risk-assessment-table">
               <tr>
-                <th style="width: 50%;">Assessment Category</th>
-                <th style="width: 25%;">Score</th>
-                <th style="width: 25%;">Classification</th>
+                <th style="width: 60%;">Assessment Area</th>
+                <th style="width: 40%;">Status</th>
               </tr>
               <tr>
-                <td><strong>Overall Readiness Score</strong></td>
+                <td>Overall Quality Score</td>
                 <td><strong>${readinessScore}/100</strong></td>
-                <td><strong>${readinessLevel.label}</strong></td>
               </tr>
               <tr>
-                <td>Legal & Regulatory Compliance Risk</td>
-                <td>${legalRisk}/100</td>
-                <td>${legalLevel.label}</td>
+                <td>Legal & Contractual Review</td>
+                <td>${100 - legalRisk}/100</td>
               </tr>
               <tr>
-                <td>Pricing & Commercial Terms Risk</td>
-                <td>${pricingRisk}/100</td>
-                <td>${pricingLevel.label}</td>
+                <td>Commercial Terms Review</td>
+                <td>${100 - pricingRisk}/100</td>
               </tr>
               <tr>
-                <td>Structural & Format Compliance Risk</td>
-                <td>${structuralRisk}/100</td>
-                <td>${structuralLevel.label}</td>
+                <td>Technical Completeness</td>
+                <td>${100 - structuralRisk}/100</td>
               </tr>
             </table>
 
-            <h3>Risk Score Interpretation</h3>
-            <ul>
-              <li><strong>0-39 (High Risk):</strong> Significant compliance issues identified requiring immediate attention and remediation.</li>
-              <li><strong>40-69 (Medium Risk):</strong> Moderate compliance concerns present; specific improvements recommended before proceeding.</li>
-              <li><strong>70-100 (Low Risk):</strong> Acceptable compliance levels met; proposal suitable for standard approval process.</li>
-            </ul>
-
             ${findings.length > 0 ? `
-          </div>
-          
-          <div class="page-break"></div>
-          
-          <div class="section">
-            <h2>2. COMPLIANCE FINDINGS</h2>
-            <p>
-              The following compliance findings have been identified during the automated assessment process.
-              Each finding includes a severity classification and detailed description for remediation purposes.
-            </p>
-            
-            ${findings.map((finding: any, idx: number) => `
-              <div class="finding-item">
-                <div class="finding-number">
-                  <strong>FINDING ${idx + 1}</strong>
-                  ${(finding.severity || finding.level) ? `<span class="severity severity-${(finding.severity || finding.level || '').toLowerCase()}"><strong>[${escapeHtml((finding.severity || finding.level).toUpperCase())}]</strong></span>` : ''}
-                </div>
-                <p><strong>Issue:</strong> ${escapeHtml(finding.issue || finding.message || finding.title || 'Compliance issue identified')}</p>
-                <p><strong>Description:</strong> ${escapeHtml(finding.description || finding.details || 'No additional details provided.')}</p>
-                ${finding.location ? `<p><strong>Location:</strong> ${escapeHtml(finding.location)}</p>` : ''}
-              </div>
+            <h2>Review Notes</h2>
+            ${findings.slice(0, 3).map((finding: any, idx: number) => `
+              <p><strong>Note ${idx + 1}:</strong> ${escapeHtml(finding.message || finding.title || 'Quality review note')}</p>
             `).join('')}
             ` : ''}
-
-            ${recommendations.length > 0 ? `
-          </div>
-          
-          <div class="page-break"></div>
-          
-          <div class="section">
-            <h2>3. RECOMMENDATIONS FOR COMPLIANCE</h2>
-            <p>
-              Based on the compliance assessment, the following recommendations are provided to enhance
-              the proposal's adherence to organizational policies and regulatory requirements.
-            </p>
             
-            ${recommendations.map((rec: any, idx: number) => `
-              <div class="recommendation-item">
-                <div class="recommendation-number"><strong>RECOMMENDATION ${idx + 1}</strong></div>
-                <p><strong>Action Required:</strong> ${escapeHtml(rec.action || rec.suggestion || rec.title || 'Recommendation')}</p>
-                <p><strong>Rationale:</strong> ${escapeHtml(rec.rationale || rec.reason || rec.description || rec.details || 'Implementation of this recommendation will improve compliance posture.')}</p>
-              </div>
-            `).join('')}
+            ${rules.length > 0 ? `
+            <h2>Applicable Standards & Policies</h2>
+            <p>
+              This proposal has been developed in alignment with the following organizational standards:
+            </p>
+            <ul>
+              ${rules.slice(0, 5).map((rule) => `
+              <li><strong>${escapeHtml(rule.name)}:</strong> ${escapeHtml(rule.description)}</li>
+              `).join('')}
+            </ul>
             ` : ''}
           </div>
           ` : ''}
           
-          <div class="page-break"></div>
-          
-          <!-- Proposal Content -->
+          <!-- Next Steps -->
           <div class="section">
-            <h1>PROPOSAL DETAILS</h1>
-            <div class="content-section">${escapeHtml(content)}</div>
-          </div>
-          
-          <div class="page-break"></div>
-          
-          <!-- Legal Disclaimers -->
-          <div class="section">
-            <h2>LEGAL NOTICES & DISCLAIMERS</h2>
+            <h1>NEXT STEPS</h1>
             
-            <h3>Confidentiality</h3>
             <p>
-              This document and all information contained herein are confidential and proprietary. This proposal
-              is intended solely for the use of the individual or entity to whom it is addressed. If you are not
-              the intended recipient, you are hereby notified that any dissemination, distribution, copying, or
-              use of this document is strictly prohibited.
+              We appreciate your consideration of this proposal and look forward to the opportunity to partner with 
+              <strong>${escapeHtml(clientName || 'your organization')}</strong> on this initiative.
             </p>
-
-            <h3>Validity Period</h3>
-            <p>
-              This proposal is valid for a period of ninety (90) days from the date of issuance. All pricing,
-              terms, and conditions are subject to change after this period without prior notice.
-            </p>
-
-            <h3>Binding Agreement</h3>
-            <p>
-              This document constitutes a proposal only and does not represent a binding contractual agreement
-              until such time as it is formally accepted in writing by both parties and executed according to
-              standard contracting procedures.
-            </p>
-
-            <h3>Acceptance</h3>
-            <p>
-              Acceptance of this proposal shall constitute agreement to all terms and conditions set forth herein,
-              as well as adherence to any additional policies and procedures referenced in this document or
-              incorporated by reference.
+            
+            <h2>Proposal Review Process</h2>
+            <ol>
+              <li><strong>Review &amp; Questions:</strong> Please review this proposal thoroughly. We welcome any questions or requests for clarification.</li>
+              <li><strong>Discussion:</strong> Schedule a meeting with our team to discuss the proposal details, timeline, and any specific requirements.</li>
+              <li><strong>Contract Execution:</strong> Upon acceptance, we will prepare formal agreements for execution by authorized signatories.</li>
+              <li><strong>Project Kickoff:</strong> Following contract execution, we will schedule a project kickoff meeting to commence work.</li>
+            </ol>
+            
+            <div class="info-box">
+              <h4>Contact Information</h4>
+              <p>
+                For questions regarding this proposal, please contact:<br/>
+                <strong>${escapeHtml(createdBy)}</strong><br/>
+                Proposal Reference: <strong>PRO-${proposal.id.slice(0, 8).toUpperCase()}</strong>
+              </p>
+            </div>
+            
+            <p style="margin-top: 20pt; text-align: center; font-size: 10pt; color: #666;">
+              Thank you for considering our proposal. We look forward to working with you.
             </p>
 
             <div class="document-footer">
               <p>
-                <strong>Document Reference:</strong> PRO-${proposal.id.slice(0, 8).toUpperCase()} | 
-                <strong>Generated:</strong> ${escapeHtml(formattedDate)} |
-                <strong>Status:</strong> ${escapeHtml(proposal.status)}
+                <strong>Proposal Reference:</strong> PRO-${proposal.id.slice(0, 8).toUpperCase()} | 
+                <strong>Issue Date:</strong> ${escapeHtml(formattedDate)}
               </p>
-              <p style="margin-top: 10pt;">
-                This document was generated electronically and is valid without signature.
+              <p style="margin-top: 10pt; color: #666;">
+                This document is issued electronically and contains the complete proposal terms and conditions.
               </p>
             </div>
           </div>
