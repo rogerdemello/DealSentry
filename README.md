@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Proposal Reviewer
 
 <div align="center">
@@ -27,507 +28,76 @@ A complete proposal lifecycle management platform with AI-powered risk analysis,
 - 🤖 **AI-Powered Analysis** - Azure OpenAI integration for intelligent risk assessment and recommendations
 - ⚖️ **Compliance Engine** - Customizable rules for pricing, legal, and structural validation
 - 📄 **Document Management** - Upload, create, and export proposals (DOCX/PDF support)
--  **Contract Lifecycle** - Monitor renewals, expiration dates, and auto-renewal flags
-- 🔗 **Enterprise Integrations** - Salesforce, HubSpot, Gmail, Google Drive, DocuSign, SharePoint
-- 🔐 **Role-Based Access** - Granular permissions for Sales Reps, Managers, Legal, RevOps, Admins, Auditors
-- 📊 **Audit Trail** - Complete activity logging and compliance reporting
+# DealSentry
 
----
+DealSentry is an AI-assisted proposal compliance and risk review system for sales teams, compliance managers, and operations leaders. It helps teams create, upload, analyze, and approve business proposals while checking pricing, legal, and structural requirements before a deal moves forward.
 
-## ✨ Features
+## Problem
 
-### 📝 Proposal Management
+Proposal reviews are usually slow, inconsistent, and spread across too many tools. Teams have to check discounting, missing clauses, approval thresholds, and document quality by hand, which creates delays and increases the chance of risky proposals going out unchecked.
 
-- **Multi-Format Upload**: Drag-and-drop DOCX/PDF files with automatic text extraction
-- **Rich Text Editor**: Create and edit proposals with live compliance validation
-- **Template Library**: Pre-built templates for Sales Proposals, MSAs, SOWs, NDAs
-- **DOCX Export**: Generate professional Word documents with proper formatting
-- **Metadata Management**: Deal size, client info, industry, custom fields
+## Approach
 
-### 🛡️ Compliance Engine
+The application combines a React frontend, an Express/TypeScript API, Prisma, and PostgreSQL to manage proposals end to end. Uploaded or created proposals are analyzed against compliance rules, scored for risk, and routed through review workflows so users can see issues early and act on them quickly.
 
-- **18+ Rule Types**: PRICING, LEGAL, STRUCTURAL categories
-- **Severity Levels**: LOW, MEDIUM, HIGH, CRITICAL
-- **Real-Time Validation**: Instant feedback as proposals are edited
-- **Risk Scoring**: Automatic readiness calculation (0-100%)
-- **Violation Detection**: 
-  - Pricing overages (discount thresholds, payment terms)
-  - Missing legal clauses (indemnification, liability, warranties)
-  - Structural issues (formatting, required sections)
-- **Custom Rules**: Create organization-specific compliance requirements
+Core capabilities include proposal creation, document upload, AI-assisted analysis, approval routing, audit logging, and enterprise integrations such as Salesforce, HubSpot, Gmail, and Google Drive.
 
-### 🔄 Approval Workflow
+## Iterations
 
-- **Multi-Stage Process**: PENDING → REVIEWED → APPROVED/REJECTED
-- **Role-Based Routing**: Sales Rep → Sales Manager → Legal → RevOps
-- **Auto-Escalation**: High-risk proposals automatically routed to Legal
-- **Status Dashboard**: Track all proposals in review pipeline
-- **Approval History**: Full audit trail of review decisions
+The project evolved in stages:
 
-### 📅 Contract Management
+1. Built the core proposal management flow so users could create, store, and review proposals.
+2. Added compliance rules and risk scoring to catch pricing, legal, and structural issues.
+3. Expanded the workflow with uploads, approvals, audit logs, and role-based access control.
+4. Added integrations and stability improvements so the system can fit into a real sales operations stack.
 
-- **Renewal Tracking**: Dashboard alerts for contracts expiring within 30/60/90 days
-- **Date Management**: Contract start, end, and renewal dates
-- **Auto-Renewal Flags**: Mark and track automatic renewals
+## Key Design Choices
 
-### 🔗 Integrations
+The main design choices were made to keep the system practical for enterprise use:
 
-| Service | Status | Features |
-|---------|--------|----------|
-| **Salesforce** | ✅ Ready | OAuth2, sync opportunities and accounts |
-| **HubSpot** | ✅ Ready | OAuth2, sync deals and contacts |
-| **Gmail** | ✅ Ready | OAuth2, send proposals via email |
-| **Google Drive** | ✅ Ready | OAuth2, automatic proposal backup |
-| **DocuSign** | 🚧 Framework | E-signature workflow integration |
-| **SharePoint** | 🚧 Framework | Document library upload |
+- A clear separation between frontend, API, and database logic keeps the codebase easier to maintain.
+- Prisma is used for schema-driven data access and safer database operations.
+- Role-based access control limits what each user can see and do.
+- Automated analysis and scoring reduce manual review time and make risk visible earlier.
+- Responsive UI patterns and reusable components keep the interface consistent across proposal, compliance, and admin screens.
+- Integration support is built in from the start so the system can connect to external business tools without major redesign.
 
-### 👥 User Management
+## Daily Time Commitment
 
-**6 Role Types with Granular Permissions:**
+Typical development time was about 2 to 4 focused hours per day during active implementation. That pace was enough to make steady progress on UI, backend routes, compliance logic, and integration work without sacrificing review and testing time.
 
-| Role | Capabilities |
-|------|--------------|
-| **SALES_REP** | Create/edit proposals, submit for review |
-| **SALES_MANAGER** | Approve deals, manage team proposals |
-| **LEGAL** | Review high-risk proposals, manage legal rules |
-| **REVOPS** | Analytics, reporting, process optimization |
-| **ADMIN** | Full system access, user management |
-| **AUDITOR** | Read-only access to audit logs |
+## Setup
 
-### 📊 Analytics & Reporting
+### Requirements
 
-- **Audit Logs**: Complete action history with user, timestamp, details
-- **Compliance Dashboard**: Active rules, violation trends, risk metrics
-- **Proposal Analytics**: Success rates, average review time, approval bottlenecks
-- **Integration Status**: Sync logs, connection health, error tracking
+- Node.js 18 or newer
+- PostgreSQL 14 or newer, or a Supabase project
+- npm
 
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** 18.x or higher
-- **PostgreSQL** 14.x or higher (or Supabase account)
-- **npm** or **yarn**
-
-### 1. Installation
+### Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/rogerdemello/DealSentry.git
-cd DealSentry
-
-# Install dependencies
 npm install
-```
-
-### 2. Environment Configuration
-
-Create a `.env` file in the project root:
-
-```env
-# Database - PostgreSQL/Supabase
-DATABASE_URL="postgresql://user:password@localhost:5432/proposal_reviewer"
-# Supabase format: postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
-
-# API Configuration
-VITE_API_URL=http://localhost:3001
-API_PORT=3001
-
-# JWT Authentication (REQUIRED)
-JWT_SECRET=your_jwt_secret_here_min_32_chars
-# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# Azure OpenAI (for AI-powered risk analysis)
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_API_KEY=your_api_key_here
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
-
-# Supabase Storage (Optional - for file uploads)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-
-# Integrations (Optional)
-SALESFORCE_CLIENT_ID=your_salesforce_client_id
-SALESFORCE_CLIENT_SECRET=your_salesforce_client_secret
-SALESFORCE_DEMO_MODE=true  # Set to false for production
-
-HUBSPOT_CLIENT_ID=your_hubspot_client_id
-HUBSPOT_CLIENT_SECRET=your_hubspot_client_secret
-
-GMAIL_CLIENT_ID=your_gmail_client_id
-GMAIL_CLIENT_SECRET=your_gmail_client_secret
-
-GOOGLE_DRIVE_CLIENT_ID=your_drive_client_id
-GOOGLE_DRIVE_CLIENT_SECRET=your_drive_client_secret
-```
-
-### 3. Database Setup
-
-```bash
-# Generate Prisma client
 npx prisma generate
-
-# Run database migrations
 npx prisma migrate deploy
-
-# Seed database with demo data
 npm run seed
 ```
 
-The seed script creates:
-- 6 demo users (admin@reviewer.ai + test1-5@reviewer.ai, password: `demo`)
-- 8 compliance rules (discount limits, legal clauses, etc.)
-- 4 proposal templates (Sales Proposal, MSA, SOW, NDA)
-- 3 sample proposals with risk reports
-- 5 legal clause templates
+### Run
 
-### 4. Start the Application
-
-**🪟 Windows Users (Easiest Method)**
 ```bash
-# Double-click start.bat or run in terminal
-start.bat
-```
-This improved startup script will:
-- ✅ Check Node.js installation and dependencies
-- ✅ Clean up any existing servers on ports 3001/8080
-- ✅ Start the backend API server
-- ✅ Verify API health before continuing
-- ✅ Start the frontend dev server
-- ✅ Provide troubleshooting guidance
-
-**To stop the servers:**
-```bash
-stop.bat
-```
-
-**Option A: Full Stack (Recommended for CLI)**
-```bash
-# Start both frontend and backend concurrently
 npm run dev:full
 ```
 
-**Option B: Separate Terminals**
-```bash
-# Terminal 1 - Backend API
-npm run server
-
-# Terminal 2 - Frontend Dev Server  
-npm run dev
-```
-
-**⚠️ Important**: You must have the backend API server running before attempting to log in. If you only run the frontend (`npm run dev`), you will see a "Network error" when trying to log in.
-
-**🔄 New Stability Features:**
-- **Automatic Reconnection**: Frontend automatically retries failed API requests (up to 3 times)
-- **Connection Monitoring**: Real-time notifications when API server goes offline/online
-- **Graceful Error Handling**: Server logs errors but continues running
-- **Port Conflict Resolution**: Automatic detection and cleanup of port conflicts
-
-See [docs/SERVER_STABILITY.md](docs/SERVER_STABILITY.md) for more details on reliability improvements.
-
-### 5. Access the Application
-
-- **Frontend**: http://localhost:8080 (or http://localhost:5173)
-- **Backend API**: http://localhost:3001
-- **Health Check**: http://localhost:3001/api/health
-
-The application will automatically monitor the API connection and notify you if the server goes offline.
-
-### 6. Login
-
-**Demo Accounts:**
-
-| Email | Password | Role | Access Level |
-|-------|----------|------|--------------|
-| admin@reviewer.ai | demo | ADMIN | Full system access |
-| test1@reviewer.ai | demo | SALES_REP | Create proposals |
-| test2@reviewer.ai | demo | SALES_MANAGER | Approve proposals |
-| test3@reviewer.ai | demo | LEGAL | Review compliance |
-| test4@reviewer.ai | demo | REVOPS | Analytics |
-| test5@reviewer.ai | demo | AUDITOR | View audit logs |
-
----
-
-## 🏗️ Tech Stack
-
-### Frontend
-- **React** 18.3 - UI library with hooks
-- **TypeScript** 5.0 - Type-safe JavaScript
-- **Vite** - Fast build tool and dev server
-- **React Router** 6.30 - Client-side routing
-- **TanStack Query** - Server state management
-- **Radix UI** - Accessible component primitives
-- **Tailwind CSS** - Utility-first styling
-- **Framer Motion** - Animation library
-- **Lucide Icons** - Icon library
-- **Sonner** - Toast notifications
-
-### Backend
-- **Node.js** 18+ - JavaScript runtime
-- **Express** 5.2 - Web application framework
-- **TypeScript** - Type-safe backend code
-- **Prisma** 7.3 - Type-safe ORM
-- **PostgreSQL** - Relational database
-- **JWT** - Token-based authentication
-- **bcryptjs** - Password hashing
-
-### Document Processing
-- **mammoth.js** - DOCX to HTML conversion
-- **docx** - DOCX file generation
-- **pdf-parse** - PDF text extraction
-
-### AI & Analysis
-- **Azure OpenAI** - GPT-4 for risk analysis
-- **OpenAI SDK** - API client library
-
-### Storage & Integration
-- **Supabase** - PostgreSQL hosting + file storage
-- **OAuth2** - Third-party integrations (Salesforce, HubSpot, Google)
-
-### Development Tools
-- **ESLint** - Code linting
-- **Prettier** - Code formatting
-- **tsx** - TypeScript execution
-- **Concurrently** - Run multiple npm scripts
-
----
-
-## 📚 Documentation
-
-### Core Documentation
-- **[SETUP.md](SETUP.md)** - Detailed setup guide with troubleshooting
-- **[COMPLIANCE_RULES.md](COMPLIANCE_RULES.md)** - Complete list of 18+ compliance rules
-- **[CREDENTIALS.md](CREDENTIALS.md)** - API keys and integration credentials
-
-### Integration Guides
-- **[AUTH_QUICKSTART.md](docs/AUTH_QUICKSTART.md)** - Authentication system implementation
-- **[SALESFORCE_INTEGRATION.md](docs/SALESFORCE_INTEGRATION.md)** - Salesforce OAuth setup
-
----
-
-## 🗂️ Project Structure
-
-```
-DealSentry/
-├── src/
-│   ├── pages/              # React pages/routes
-│   │   ├── Dashboard.tsx   # Main dashboard
-│   │   ├── Proposals.tsx   # Proposal list
-│   │   ├── ProposalReview.tsx  # Review interface
-│   │   ├── Compliance.tsx  # Rules management
-│   │   ├── Integrations.tsx    # External connections
-│   │   └── Audit.tsx       # Activity logs
-│   │
-│   ├── components/         # React components
-│   │   ├── ui/            # Reusable UI components
-│   │   ├── layout/        # Layout wrappers
-│   │   └── proposals/     # Proposal-specific components
-│   │
-│   ├── api/               # Backend API routes
-│   │   ├── proposals.ts   # Proposal CRUD operations
-│   │   ├── rules.ts       # Compliance rule management
-│   │   ├── auth.ts        # Authentication endpoints
-│   │   ├── analyze.ts     # AI risk analysis
-│   │   ├── integrations.ts    # External system sync
-│   │   └── middleware/    # Auth middleware
-│   │
-│   ├── lib/               # Utility functions
-│   │   ├── api-client.ts  # API request wrapper
-│   │   ├── auth.ts        # JWT utilities
-│   │   └── supabase.ts    # Supabase client
-│   │
-│   ├── context/           # React context providers
-│   ├── hooks/             # Custom React hooks
-│   └── types/             # TypeScript definitions
-│
-├── prisma/
-│   ├── schema.prisma      # Database schema
-│   └── seed.ts            # Seed data script
-│
-├── docs/                  # Additional documentation
-├── scripts/               # Utility scripts
-└── public/                # Static assets
-```
-
----
-
-## 🔧 API Endpoints
-
-### Authentication
-```typescript
-POST   /api/auth/signup      # Create new user account
-POST   /api/auth/login       # Login and get JWT token
-GET    /api/auth/verify      # Verify JWT token validity
-POST   /api/auth/logout      # Invalidate session
-```
-
-### Proposals
-```typescript
-GET    /api/proposals        # List all proposals (with filters)
-POST   /api/proposals        # Create new proposal
-GET    /api/proposals/:id    # Get proposal by ID
-PUT    /api/proposals/:id    # Update proposal
-DELETE /api/proposals/:id    # Delete proposal
-POST   /api/proposals/:id/analyze    # Run AI risk analysis
-GET    /api/proposals/:id/export     # Export as DOCX
-POST   /api/proposals/:id/amendment  # Create amendment version
-```
-
-### Compliance Rules
-```typescript
-GET    /api/rules            # List all compliance rules
-POST   /api/rules            # Create new rule
-PUT    /api/rules/:id        # Update rule
-DELETE /api/rules/:id        # Delete rule
-POST   /api/rules/validate   # Validate proposal against rules
-```
-
-### Templates
-```typescript
-GET    /api/templates        # List all templates
-POST   /api/templates        # Create new template
-GET    /api/templates/:id    # Get template by ID
-PUT    /api/templates/:id    # Update template
-DELETE /api/templates/:id    # Delete template
-```
-
-### Integrations
-```typescript
-GET    /api/integrations     # List all integrations
-POST   /api/integrations     # Connect new integration
-GET    /api/integrations/:id # Get integration details
-PUT    /api/integrations/:id # Update integration config
-DELETE /api/integrations/:id # Disconnect integration
-POST   /api/integrations/:id/sync    # Trigger manual sync
-GET    /api/integrations/:id/logs    # Get sync logs
-```
-
-### Audit
-```typescript
-GET    /api/audit            # List audit logs (paginated)
-GET    /api/audit/user/:id   # Get user's activity
-GET    /api/audit/proposal/:id   # Get proposal history
-```
-
----
-
-## 🎨 Screenshots
-
-### Dashboard
-*Main dashboard showing proposals in review, compliance metrics, and renewal alerts*
-
-### Proposal Review
-*AI-powered risk analysis with compliance violation highlights and recommendations*
-
-### Compliance Rules
-*Manage pricing, legal, and structural compliance rules with severity levels*
-
-### Integrations
-*Connect to Salesforce, HubSpot, Gmail, and other enterprise systems*
-
----
-
-## 🚦 Usage Guide
-
-### Creating a Proposal
-
-1. **From Template**
-   - Navigate to "Proposals" → "New Proposal"
-   - Select a template (Sales Proposal, MSA, SOW, NDA)
-   - Fill in metadata and customize content
-   - Save and submit for review
-
-2. **From Upload**
-   - Navigate to "Proposals" → "Upload"
-   - Drag and drop DOCX/PDF file
-   - System extracts text and metadata
-   - Review and submit
-
-3. **From Scratch**
-   - Navigate to "Proposals" → "Create"
-   - Use rich text editor
-   - Real-time compliance checking as you type
-   - Export as DOCX when complete
-
-### Managing Compliance Rules
-
-```typescript
-// Example: Create a discount threshold rule
-{
-  name: "Maximum Discount Threshold",
-  type: "PRICING",
-  severity: "HIGH",
-  description: "Discounts exceeding 20% require Manager approval",
-  logic: "discount > 20",
-  active: true
-}
-```
-
-### Running AI Risk Analysis
-
-The AI analysis evaluates proposals across multiple dimensions:
-
-- **Pricing Compliance**: Discount thresholds, payment terms, deal sizing
-- **Legal Requirements**: Required clauses, liability limits, warranties  
-- **Structural Quality**: Formatting, completeness, clarity
-- **Risk Score**: 0-100% readiness rating
-- **Recommendations**: Specific improvements to make
-
-### Setting Up Integrations
-
-**Salesforce Example:**
-
-1. Create a Connected App in Salesforce Setup
-2. Configure OAuth settings (callback URL: `http://localhost:3001/api/oauth/salesforce/callback`)
-3. Copy Client ID and Secret to `.env`
-4. Navigate to "Integrations" in the app
-5. Click "Connect" on Salesforce card
-6. Authorize access
-7. Configure sync settings (opportunities, accounts, frequency)
-
-*See [SALESFORCE_INTEGRATION.md](docs/SALESFORCE_INTEGRATION.md) for detailed steps*
-
----
-
-## 🧪 Development
-
-### Running Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-```
-
-### Database Management
-
-```bash
-# Create new migration
-npx prisma migrate dev --name migration_name
-
-# Reset database (wipes all data)
-npx prisma migrate reset
-
-# Open Prisma Studio (GUI)
-npx prisma studio
-
-# Format schema file
-npx prisma format
-```
-
-### Code Quality
-
-```bash
-# Lint code
+On Windows, you can also use `start.bat` to launch the backend and frontend together.
+
+## Documentation
+
+- [SETUP.md](SETUP.md)
+- [COMPLIANCE_RULES.md](COMPLIANCE_RULES.md)
+- [docs/SERVER_STABILITY.md](docs/SERVER_STABILITY.md)
+- [docs/AUTH_QUICKSTART.md](docs/AUTH_QUICKSTART.md)
+- [docs/SALESFORCE_INTEGRATION.md](docs/SALESFORCE_INTEGRATION.md)
 npm run lint
 
 # Fix linting issues
@@ -1021,3 +591,75 @@ For issues or questions:
 ✅ **Enterprise-ready** with integrations and role-based access  
 
 ---
+=======
+# DealSentry
+
+DealSentry is an AI-assisted proposal compliance and risk review system for sales teams, compliance managers, and operations leaders. It helps teams create, upload, analyze, and approve business proposals while checking pricing, legal, and structural requirements before a deal moves forward.
+
+## Problem
+
+Proposal reviews are usually slow, inconsistent, and spread across too many tools. Teams have to check discounting, missing clauses, approval thresholds, and document quality by hand, which creates delays and increases the chance of risky proposals going out unchecked.
+
+## Approach
+
+The application combines a React frontend, an Express/TypeScript API, Prisma, and PostgreSQL to manage proposals end to end. Uploaded or created proposals are analyzed against compliance rules, scored for risk, and routed through review workflows so users can see issues early and act on them quickly.
+
+Core capabilities include proposal creation, document upload, AI-assisted analysis, approval routing, audit logging, and enterprise integrations such as Salesforce, HubSpot, Gmail, and Google Drive.
+
+## Iterations
+
+The project evolved in stages:
+
+1. Built the core proposal management flow so users could create, store, and review proposals.
+2. Added compliance rules and risk scoring to catch pricing, legal, and structural issues.
+3. Expanded the workflow with uploads, approvals, audit logs, and role-based access control.
+4. Added integrations and stability improvements so the system can fit into a real sales operations stack.
+
+## Key Design Choices
+
+The main design choices were made to keep the system practical for enterprise use:
+
+- A clear separation between frontend, API, and database logic keeps the codebase easier to maintain.
+- Prisma is used for schema-driven data access and safer database operations.
+- Role-based access control limits what each user can see and do.
+- Automated analysis and scoring reduce manual review time and make risk visible earlier.
+- Responsive UI patterns and reusable components keep the interface consistent across proposal, compliance, and admin screens.
+- Integration support is built in from the start so the system can connect to external business tools without major redesign.
+
+## Daily Time Commitment
+
+Typical development time was about 2 to 4 focused hours per day during active implementation. That pace was enough to make steady progress on UI, backend routes, compliance logic, and integration work without sacrificing review and testing time.
+
+## Setup
+
+### Requirements
+
+- Node.js 18 or newer
+- PostgreSQL 14 or newer, or a Supabase project
+- npm
+
+### Install
+
+```bash
+npm install
+npx prisma generate
+npx prisma migrate deploy
+npm run seed
+```
+
+### Run
+
+```bash
+npm run dev:full
+```
+
+On Windows, you can also use `start.bat` to launch the backend and frontend together.
+
+## Documentation
+
+- [SETUP.md](SETUP.md)
+- [COMPLIANCE_RULES.md](COMPLIANCE_RULES.md)
+- [docs/SERVER_STABILITY.md](docs/SERVER_STABILITY.md)
+- [docs/AUTH_QUICKSTART.md](docs/AUTH_QUICKSTART.md)
+- [docs/SALESFORCE_INTEGRATION.md](docs/SALESFORCE_INTEGRATION.md)
+>>>>>>> 0b654cf (Update README.md)
