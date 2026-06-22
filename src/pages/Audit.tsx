@@ -10,8 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { auditApi } from "@/lib/api-client";
-import { AuditLog } from "@/types";
+import { auditApi, type AuditLog } from "@/lib/api-client";
 import { formatIST } from "@/lib/utils";
 
 type Severity = "ALL" | "CRITICAL" | "WARNING" | "INFO";

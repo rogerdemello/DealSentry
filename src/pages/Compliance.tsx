@@ -19,9 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Rule, RuleType } from "@/types";
+import { RuleType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { rulesApi } from "@/lib/api-client";
+import { rulesApi, type Rule } from "@/lib/api-client";
 
 const ruleTypeLabels: Record<RuleType, string> = {
   DISCOUNT: "Discount",
@@ -152,7 +152,7 @@ export default function Compliance() {
   const openEditModal = (rule: Rule) => {
     setEditingRule(rule);
     setFormName(rule.name);
-    setFormType(rule.type);
+    setFormType(rule.type as RuleType);
     setFormDescription(rule.description || "");
     setFormLogicValue(JSON.stringify(Object.values(rule.logic)[0]));
     setIsModalOpen(true);
