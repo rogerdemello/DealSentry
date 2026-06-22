@@ -2,11 +2,12 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
-  LayoutDashboard, 
-  FileText, 
-  Shield, 
-  Link2, 
-  ClipboardList, 
+  LayoutDashboard,
+  FileText,
+  Shield,
+  Link2,
+  BarChart3,
+  ClipboardList,
   LogOut,
   ChevronRight,
   Sparkles,
@@ -16,6 +17,7 @@ import {
   Settings as SettingsIcon
 } from "lucide-react";
 import { isAuthenticated, getCurrentUser, clearAuthData } from "@/lib/auth-utils";
+import NotificationBell from "@/components/NotificationBell";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -30,6 +32,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/proposals", label: "Proposals", icon: FileText },
   { href: "/compliance", label: "Compliance", icon: Shield },
   { href: "/integrations", label: "Integrations", icon: Link2 },
@@ -181,14 +184,15 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 ml-[260px] relative">
-        {/* Home Button - Top Right Corner */}
+        {/* Top Right Corner: notifications + home */}
         {location.pathname !== "/" && (
           <motion.div
             initial={{ opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute top-2 right-2 z-40"
+            className="absolute top-2 right-2 z-40 flex items-center gap-2"
           >
+            {isLoggedIn && <NotificationBell />}
             <Link
               to="/"
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-card/95 backdrop-blur-sm border border-border/60 shadow-sm hover:shadow-md hover:bg-muted/50 transition-all duration-200 text-xs font-medium text-foreground hover:text-primary"
