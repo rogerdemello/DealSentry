@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { AzureOpenAI } from 'openai';
 import { supabase } from '../lib/supabase';
 import { requireAuth, canAccessCompany } from './middleware/auth';
+import { normalizeAnalysis, shouldAutoReview } from './lib/compliance';
 
 const router = Router();
 
@@ -140,7 +141,7 @@ Respond in JSON format:
       throw new Error('No response from AI');
     }
 
-    const analysis = JSON.parse(responseContent);
+    const analysis = normalizeAnalysis(JSON.parse(responseContent));
 
     // Check if risk report already exists
     const { data: existingReport } = await supabase
@@ -156,12 +157,12 @@ Respond in JSON format:
       const { data, error: updateError } = await supabase
         .from('RiskReport')
         .update({
-          readinessScore: analysis.readinessScore || 50,
-          legalRisk: analysis.legalRisk || 20,
-          pricingRisk: analysis.pricingRisk || 20,
-          structuralRisk: analysis.structuralRisk || 20,
-          findings: analysis.findings || [],
-          recommendations: analysis.recommendations || [],
+          readinessScore: analysis.readinessScore,
+          legalRisk: analysis.legalRisk,
+          pricingRisk: analysis.pricingRisk,
+          structuralRisk: analysis.structuralRisk,
+          findings: analysis.findings,
+          recommendations: analysis.recommendations,
         })
         .eq('id', existingReport.id)
         .select()
@@ -176,28 +177,28 @@ Respond in JSON format:
         .insert({
           id: crypto.randomUUID(),
           proposalId,
-          readinessScore: analysis.readinessScore || 50,
-          legalRisk: analysis.legalRisk || 20,
-          pricingRisk: analysis.pricingRisk || 20,
-          structuralRisk: analysis.structuralRisk || 20,
-          findings: analysis.findings || [],
-          recommendations: analysis.recommendations || [],
+          readinessScore: analysis.readinessScore,
+          legalRisk: analysis.legalRisk,
+          pricingRisk: analysis.pricingRisk,
+          structuralRisk: analysis.structuralRisk,
+          findings: analysis.findings,
+          recommendations: analysis.recommendations,
         })
         .select()
         .single();
-      
+
       if (insertError) throw insertError;
       riskReport = data;
     }
 
     // Update proposal with readiness score and status
     const updateData: { readinessScore: number; updatedAt: string; status?: string } = {
-      readinessScore: analysis.readinessScore || 50,
+      readinessScore: analysis.readinessScore,
       updatedAt: new Date().toISOString(),
     };
-    
-    // Update status based on score
-    if (analysis.readinessScore >= 80) {
+
+    // Auto-advance to review once the proposal is healthy enough.
+    if (shouldAutoReview(analysis.readinessScore)) {
       updateData.status = 'IN_REVIEW';
     }
     
