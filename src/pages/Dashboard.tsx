@@ -1,64 +1,96 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Upload, FileText, TrendingUp, AlertTriangle, ArrowRight, Clock, BarChart3 } from "lucide-react";
+import { Upload, FileText, AlertTriangle, ArrowRight, Clock, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProposalCard } from "@/components/proposals/ProposalCard";
 import { useProposals } from "@/context/useProposals";
+import { analyticsApi, type AnalyticsDelta } from "@/lib/api-client";
+
+/** Format a period-over-period delta into a short badge string. */
+function formatDelta(delta?: AnalyticsDelta): { trend: string; trendUp: boolean } | null {
+  if (!delta) return null;
+  const trend =
+    delta.changePct !== 0
+      ? `${delta.up ? "+" : ""}${delta.changePct}%`
+      : `${delta.change >= 0 ? "+" : ""}${delta.change}`;
+  return { trend, trendUp: delta.up };
+}
 
 export default function Dashboard() {
   const { proposals } = useProposals();
-  
+  const [deltas, setDeltas] = useState<Record<string, AnalyticsDelta> | null>(null);
+
+  // Real period-over-period deltas come from the analytics summary; the card
+  // values stay client-side for instant render.
+  useEffect(() => {
+    let cancelled = false;
+    analyticsApi
+      .getSummary()
+      .then((s) => {
+        if (cancelled) return;
+        setDeltas({
+          total: s.headline.total.delta,
+          pending: s.headline.pending.delta,
+          avgReadiness: s.headline.avgReadiness.delta,
+          needsAttention: s.headline.needsAttention.delta,
+        });
+      })
+      .catch(() => {
+        /* deltas are best-effort; cards still render without them */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const recentProposals = proposals.slice(0, 3);
   const hasProposals = proposals.length > 0;
 
   // Stats
   const totalProposals = proposals.length;
   const pendingCount = proposals.filter(p => p.status === "PENDING").length;
-  const avgScore = totalProposals > 0 
+  const avgScore = totalProposals > 0
     ? Math.round(proposals.reduce((acc, p) => acc + p.readinessScore, 0) / totalProposals)
     : 0;
   const atRiskCount = proposals.filter(p => p.readinessScore < 60).length;
 
   const stats = [
-    { 
-      label: "Total Proposals", 
-      value: totalProposals, 
-      icon: FileText, 
+    {
+      label: "Total Proposals",
+      value: totalProposals,
+      icon: FileText,
       color: "text-primary",
       bgColor: "bg-primary/8",
       borderColor: "border-l-primary",
-      trend: "+12%",
-      trendUp: true
+      ...formatDelta(deltas?.total),
     },
-    { 
-      label: "Pending Review", 
-      value: pendingCount, 
-      icon: Clock, 
+    {
+      label: "Pending Review",
+      value: pendingCount,
+      icon: Clock,
       color: "text-amber-600",
       bgColor: "bg-amber-50",
       borderColor: "border-l-amber-500",
-      trend: "-2",
-      trendUp: false
+      ...formatDelta(deltas?.pending),
     },
-    { 
-      label: "Avg. Score", 
-      value: `${avgScore}%`, 
-      icon: BarChart3, 
+    {
+      label: "Avg. Score",
+      value: `${avgScore}%`,
+      icon: BarChart3,
       color: "text-emerald-600",
       bgColor: "bg-emerald-50",
       borderColor: "border-l-emerald-500",
-      trend: "+5%",
-      trendUp: true
+      ...formatDelta(deltas?.avgReadiness),
     },
-    { 
-      label: "Needs Attention", 
-      value: atRiskCount, 
-      icon: AlertTriangle, 
+    {
+      label: "Needs Attention",
+      value: atRiskCount,
+      icon: AlertTriangle,
       color: "text-red-600",
       bgColor: "bg-red-50",
       borderColor: "border-l-red-500",
-      trend: "-1",
-      trendUp: false
+      ...formatDelta(deltas?.needsAttention),
     },
   ];
 
@@ -117,13 +149,15 @@ export default function Dashboard() {
                 <div className={`w-10 h-10 rounded-lg ${stat.bgColor} flex items-center justify-center transition-transform duration-300 group-hover:scale-105`}>
                   <Icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  stat.trendUp 
-                    ? "bg-emerald-50 text-emerald-600" 
-                    : "bg-slate-100 text-slate-500"
-                }`}>
-                  {stat.trend}
-                </span>
+                {stat.trend && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    stat.trendUp
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {stat.trend}
+                  </span>
+                )}
               </div>
               <div className="text-2xl md:text-3xl font-semibold text-foreground mb-1 tracking-tight">
                 {stat.value}

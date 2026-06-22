@@ -19,6 +19,7 @@ import Compliance from "@/pages/Compliance";
 import Integrations from "@/pages/Integrations";
 import Settings from "@/pages/Settings";
 import Audit from "@/pages/Audit";
+import Analytics from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ function AppContent() {
         <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
+        <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </ClientLayout>
