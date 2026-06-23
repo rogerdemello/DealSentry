@@ -282,7 +282,7 @@ export default function Integrations() {
           
           // Update database
           try {
-            await fetch(`${apiOrigin}/api/integrations/${integration.id}`, {
+            await fetch(`${base}/api/integrations/${integration.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ isActive: false }),

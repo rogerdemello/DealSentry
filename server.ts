@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { config } from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+import { authLimiter, aiLimiter } from './src/api/middleware/rateLimit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,9 +24,12 @@ import integrationsRouter from './src/api/integrations';
 import authRouter from './src/api/auth';
 import oauthRouter from './src/api/oauth';
 import filesRouter from './src/api/files';
+import analyticsRouter from './src/api/analytics';
+import notificationsRouter from './src/api/notifications';
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+// Render (and most PaaS) inject PORT; fall back to API_PORT for local dev.
+const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // CORS configuration - restrict to production domain in production
 // In development: allows localhost origins for local testing
@@ -39,6 +45,13 @@ const allowedOrigins = isDevelopment
       'http://127.0.0.1:8080',
     ]
   : [process.env.PRODUCTION_URL || 'https://your-production-domain.com'];
+
+// Security headers. crossOriginResourcePolicy is relaxed so the SPA/API can
+// serve cross-origin assets (e.g. PDF/file downloads) without being blocked.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 // Middleware
 app.use(cors({
@@ -63,16 +76,29 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/rules', rulesRouter);
 app.use('/api/templates', templatesRouter);
 app.use('/api/audit', auditRouter);
-app.use('/api/analyze', analyzeRouter);
+app.use('/api/analyze', aiLimiter, analyzeRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/integrations', integrationsRouter);
 app.use('/api/oauth', oauthRouter);
 app.use('/api/files', filesRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/notifications', notificationsRouter);
+
+// In production, serve the built SPA from dist/ and let client-side routing
+// handle any non-API path (Express 5: use a catch-all middleware, not '*').
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, 'dist');
+  app.use(express.static(distPath));
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -1,0 +1,57 @@
+# Render Blueprint — deploys DealSentry as a Docker web service.
+# In Render: New → Blueprint → connect this repo. Render reads this file,
+# builds the Dockerfile, and provisions the service. Fill in the `sync: false`
+# secrets in the dashboard (they are intentionally not stored in git).
+#
+# Puppeteer/Chromium (PDF export) is memory-hungry — use at least the `starter`
+# plan; bump to `standard` (2 GB) if PDF exports OOM. Avoid the free plan: it
+# spins down on idle, which is bad for a persistent API.
+services:
+  - type: web
+    name: dealsentry
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # JWT signing secret — Render generates a strong value (rotates the old one).
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+
+      # --- Secrets: set these in the Render dashboard (rotate first!) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: AZURE_OPENAI_ENDPOINT
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # --- Non-secret config (override in dashboard if needed) ---
+      - key: AZURE_OPENAI_DEPLOYMENT
+        value: gpt-4o
+      - key: AZURE_OPENAI_API_VERSION
+        value: 2024-12-01-preview
+      - key: AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+        value: text-embedding-ada-002
+
+      # Set both to the service's public URL after the first deploy
+      # (e.g. https://dealsentry.onrender.com). Used for CORS + OAuth redirects.
+      - key: PRODUCTION_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+      # --- Email (optional; off until enabled) ---
+      - key: EMAIL_ENABLED
+        value: "false"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: DealSentry <noreply@dealsentry.ai>

@@ -2,6 +2,11 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import puppeteer from 'puppeteer';
 import { requireAuth, isAdmin, canAccessCompany } from './middleware/auth';
+import { aiLimiter } from './middleware/rateLimit';
+import { markdownToHtml } from './lib/compliance';
+import { sendEmail } from './lib/email';
+import { buildStatusChangeEmail } from './lib/emailTemplates';
+import { generateEmbedding } from './lib/embeddings';
 import { AzureOpenAI } from 'openai';
 
 const router = Router();
@@ -15,34 +20,22 @@ const client = new AzureOpenAI({
 
 const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
-// Helper function to convert markdown formatting to HTML
-// Escapes HTML first for security, then converts markdown patterns
-function markdownToHtml(text: string): string {
-  if (!text) return '';
-  
-  let html = text;
-  
-  // Convert headers (must be at start of line)
-  html = html.replace(/^### (.+)$/gm, '<h3 class="content-h3">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="content-h2">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="content-h1">$1</h1>');
-  
-  // Convert **bold** to <strong>bold</strong> (greedy match within lines)
-  html = html.replace(/\*\*([^\n]+?)\*\*/g, '<strong>$1</strong>');
-  
-  // Convert *italic* to <em>italic</em> (single asterisk, not part of **)
-  html = html.replace(/(?<!\*)\*([^\n*]+?)\*(?!\*)/g, '<em>$1</em>');
-  
-  // Convert __underline__ to <u>underline</u>
-  html = html.replace(/__([^\n]+?)__/g, '<u>$1</u>');
-  
-  // Convert bullet points
-  html = html.replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>');
-  
-  // Convert line breaks to <br> for proper display
-  html = html.replace(/\n/g, '<br>\n');
-  
-  return html;
+/**
+ * Best-effort: compute and store a content embedding for semantic search.
+ * Silently no-ops if embeddings or the pgvector column aren't available yet,
+ * so it never breaks proposal create/generate. See docs/SEMANTIC_SEARCH.md.
+ */
+async function storeProposalEmbedding(id: string, text: string): Promise<void> {
+  try {
+    const embedding = await generateEmbedding(text);
+    if (!embedding) return;
+    const { error } = await supabase.from('Proposal').update({ embedding }).eq('id', id);
+    if (error) {
+      console.warn('Embedding not stored (run the pgvector migration):', error.message);
+    }
+  } catch (err) {
+    console.warn('Embedding store skipped:', (err as Error).message);
+  }
 }
 
 // Types for database rows
@@ -126,6 +119,48 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// GET semantic search over proposal content (Phase 4).
+// Returns ranked proposal ids; `available:false` when pgvector/embeddings are
+// not set up yet, so the client falls back to substring search.
+// NOTE: must precede GET '/:id'.
+router.get('/search', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 3) {
+      return res.json({ available: true, results: [] });
+    }
+
+    const queryEmbedding = await generateEmbedding(q);
+    if (!queryEmbedding) {
+      return res.json({ available: false, results: [] });
+    }
+
+    // Company scoping: admins search everything, others their company only.
+    const filterCompany = isAdmin(req) ? null : req.user?.companyId ?? null;
+
+    const { data, error } = await supabase.rpc('match_proposals', {
+      query_embedding: queryEmbedding,
+      match_count: 20,
+      filter_company: filterCompany,
+    });
+
+    if (error) {
+      // RPC/extension/column not present yet — signal graceful fallback.
+      console.warn('Semantic search unavailable (run the pgvector migration):', error.message);
+      return res.json({ available: false, results: [] });
+    }
+
+    const results = (data || []).map((r: { id: string; similarity: number }) => ({
+      id: r.id,
+      similarity: r.similarity,
+    }));
+    res.json({ available: true, results });
+  } catch (error) {
+    console.error('Error in semantic search:', error);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
 // POST create proposal (owned by current user's company)
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -164,6 +199,8 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       after: { title, status: 'PENDING' },
     });
 
+    await storeProposalEmbedding(proposal.id, `${title}\n\n${content}`);
+
     res.status(201).json({
       id: proposal.id,
       title: proposal.title,
@@ -182,7 +219,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST generate proposal from natural language using AI
-router.post('/generate', requireAuth, async (req: Request, res: Response) => {
+router.post('/generate', aiLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const { naturalLanguageQuery } = req.body;
     const user = req.user!;
@@ -295,7 +332,7 @@ Respond in JSON format:
 
     // Enforce compliance rules on generated data
     let discount = generated.metadata?.discount != null ? Number(generated.metadata.discount) : 0;
-    let dealSize = generated.metadata?.dealSize != null ? Number(generated.metadata.dealSize) : null;
+    const dealSize = generated.metadata?.dealSize != null ? Number(generated.metadata.dealSize) : null;
     
     // Cap discount at 25% maximum
     if (discount > 25) {
@@ -342,6 +379,8 @@ Respond in JSON format:
       action: 'Created proposal from AI generation',
       after: { title: generated.title, status: 'PENDING', source: 'ai-generated' },
     });
+
+    await storeProposalEmbedding(proposal.id, `${proposal.title}\n\n${proposal.content}`);
 
     res.status(201).json({
       id: proposal.id,
@@ -390,6 +429,27 @@ router.put('/:id/status', requireAuth, async (req: Request, res: Response) => {
       action: `Changed status to ${status}`,
       after: { status },
     });
+
+    // Notify the proposal owner of the status change (gated + best-effort).
+    try {
+      const { data: owner } = await supabase
+        .from('User')
+        .select('name, email')
+        .eq('id', proposal.userId)
+        .single();
+      if (owner?.email) {
+        await sendEmail(
+          owner.email,
+          buildStatusChangeEmail({
+            proposalTitle: proposal.title,
+            status,
+            recipientName: owner.name,
+          })
+        );
+      }
+    } catch (mailErr) {
+      console.error('Status-change email failed (non-fatal):', mailErr);
+    }
 
     res.json({ id: proposal.id, status: proposal.status });
   } catch (error) {
@@ -460,18 +520,6 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
     const structuralRisk = riskReport?.structuralRisk || 0;
     const findings = (riskReport?.findings as any[]) || [];
     const recommendations = (riskReport?.recommendations as any[]) || [];
-
-    // Helper function to get risk color and label
-    const getRiskLevel = (score: number) => {
-      if (score >= 70) return { color: '#22c55e', label: 'Low Risk', bg: '#f0fdf4' };
-      if (score >= 40) return { color: '#f59e0b', label: 'Medium Risk', bg: '#fef3c7' };
-      return { color: '#ef4444', label: 'High Risk', bg: '#fee2e2' };
-    };
-
-    const readinessLevel = getRiskLevel(readinessScore);
-    const legalLevel = getRiskLevel(100 - legalRisk);
-    const pricingLevel = getRiskLevel(100 - pricingRisk);
-    const structuralLevel = getRiskLevel(100 - structuralRisk);
 
     // Get current user info
     const userInfo = proposal.User as UserRow;

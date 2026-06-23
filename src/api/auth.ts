@@ -9,6 +9,14 @@ const router = Router();
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
 const SALT_ROUNDS = 10;
 
+/** Shape of the signed JWT payload issued at login/register. */
+interface JwtPayload {
+  userId: string;
+  email: string;
+  role: string;
+  companyId: string | null;
+}
+
 // POST login
 router.post('/login', async (req: Request, res: Response) => {
   try {
@@ -147,7 +155,7 @@ router.get('/verify', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
     const { data: user, error } = await supabase
       .from('User')
@@ -188,7 +196,12 @@ router.get('/verify', async (req: Request, res: Response) => {
 router.post('/change-password', requireAuth, async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = (req as any).user.userId;
+    // requireAuth populates req.user with the AuthUser shape (id, not userId).
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current password and new password are required' });
@@ -238,24 +251,5 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
-
-// Middleware to protect routes
-export const authMiddleware = async (req: Request, res: Response, next: Function) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    (req as any).user = decoded;
-    
-    next();
-  } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 export default router;

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { requireAuth } from './middleware/auth';
+import { logger } from './lib/logger';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
@@ -17,8 +18,18 @@ const requireAuthFromQuery = (req: Request, res: Response, next: Function) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any;
-    req.user = { id: decoded.userId };
+    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
+      userId: string;
+      email?: string;
+      role?: string;
+      companyId?: string | null;
+    };
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email ?? '',
+      role: decoded.role ?? '',
+      companyId: decoded.companyId ?? null,
+    };
     next();
   } catch (error) {
     return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
@@ -340,7 +351,7 @@ router.get('/hubspot/callback', async (req: Request, res: Response) => {
           .single();
 
         if (existing) {
-          console.log('Updating existing HubSpot integration:', existing.id);
+          logger.debug('Updating existing HubSpot integration:', existing.id);
           
           const { data: updated, error: updateError } = await supabase
             .from('Integration')
@@ -354,9 +365,9 @@ router.get('/hubspot/callback', async (req: Request, res: Response) => {
             .single();
           
           if (updateError) throw updateError;
-          console.log('HubSpot integration updated successfully');
+          logger.debug('HubSpot integration updated successfully');
         } else {
-          console.log('Creating new HubSpot integration for user:', userId);
+          logger.debug('Creating new HubSpot integration for user:', userId);
           
           await supabase.from('Integration').insert({
             id: (crypto as any).randomUUID(),
@@ -369,7 +380,7 @@ router.get('/hubspot/callback', async (req: Request, res: Response) => {
             updatedAt: new Date().toISOString(),
           });
           
-          console.log('HubSpot integration created successfully');
+          logger.debug('HubSpot integration created successfully');
         }
       } catch (err) {
         console.error('Failed to upsert HubSpot integration:', err);
@@ -439,7 +450,7 @@ router.get('/gmail/authorize', requireAuthFromQuery, async (req: Request, res: R
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/oauth/gmail/callback';
   const scopes = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly';
-  let authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${encodeURIComponent(userId)}`;
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${encodeURIComponent(userId)}`;
   res.redirect(authUrl);
 });
 

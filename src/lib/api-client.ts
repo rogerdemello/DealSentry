@@ -235,6 +235,13 @@ export const proposalsApi = {
     apiCall<{ proposalId: string; riskReport: Proposal['riskReport'] }>(`/api/analyze/${id}`, {
       method: 'POST',
     }),
+
+  // Semantic search. `available:false` => pgvector/embeddings not set up yet;
+  // callers should fall back to client-side substring filtering.
+  search: (q: string) =>
+    apiCall<{ available: boolean; results: { id: string; similarity: number }[] }>(
+      `/api/proposals/search?q=${encodeURIComponent(q)}`
+    ),
 };
 
 // Rules API
@@ -273,6 +280,45 @@ export const templatesApi = {
 // Audit API
 export const auditApi = {
   getAll: () => apiCall<AuditLog[]>('/api/audit'),
+};
+
+// Analytics API
+export interface AnalyticsDelta {
+  change: number;
+  changePct: number;
+  up: boolean;
+}
+
+export interface AnalyticsSummary {
+  totals: { total: number; pending: number; inReview: number; approved: number; rejected: number };
+  headline: {
+    total: { value: number; delta: AnalyticsDelta };
+    pending: { value: number; delta: AnalyticsDelta };
+    avgReadiness: { value: number; delta: AnalyticsDelta };
+    needsAttention: { value: number; delta: AnalyticsDelta };
+  };
+  statusBreakdown: { status: string; count: number }[];
+  riskAverages: { readiness: number; legal: number; pricing: number; structural: number };
+  createdPerWeek: { weekStart: string; count: number }[];
+  discountDistribution: { bucket: string; count: number }[];
+  dealValueByRegion: { region: string; total: number }[];
+}
+
+export const analyticsApi = {
+  getSummary: () => apiCall<AnalyticsSummary>('/api/analytics/summary'),
+};
+
+// Notifications API (recent scoped activity + unread count)
+export interface NotificationsResponse {
+  items: AuditLog[];
+  unreadCount: number;
+}
+
+export const notificationsApi = {
+  get: (since?: string) =>
+    apiCall<NotificationsResponse>(
+      `/api/notifications${since ? `?since=${encodeURIComponent(since)}` : ''}`
+    ),
 };
 
 // Users API
