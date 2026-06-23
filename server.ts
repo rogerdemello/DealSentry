@@ -28,7 +28,8 @@ import analyticsRouter from './src/api/analytics';
 import notificationsRouter from './src/api/notifications';
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+// Render (and most PaaS) inject PORT; fall back to API_PORT for local dev.
+const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // CORS configuration - restrict to production domain in production
 // In development: allows localhost origins for local testing
