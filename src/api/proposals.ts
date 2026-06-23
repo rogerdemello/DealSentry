@@ -1109,7 +1109,17 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
     `;
 
     const browser = await puppeteer.launch({ 
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      // Memory-reduction flags so headless Chromium fits constrained hosts
+      // (e.g. Render free tier, 512MB). --single-process is the biggest saver.
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-zygote',
+        '--single-process',
+        '--disable-extensions',
+      ],
       headless: true
     });
     const page = await browser.newPage();
