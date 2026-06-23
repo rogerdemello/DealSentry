@@ -53,7 +53,11 @@ model Proposal {
   contractEndDate    DateTime?
   renewalDate        DateTime?
   autoRenew          Boolean  @default(false)
-  
+
+  // Semantic search embedding (pgvector). Added via prisma/manual/semantic_search.sql;
+  // populated best-effort on create and by scripts/backfill-embeddings.ts.
+  embedding      Unsupported("vector(1536)")?
+
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 }

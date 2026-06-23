@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Plus, Search, Filter, SlidersHorizontal, FileText, Upload, Trash2 } from "lucide-react";
@@ -29,23 +29,61 @@ export default function Proposals() {
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  // Semantic ranking (id -> similarity) when available; null => substring fallback.
+  const [semanticRank, setSemanticRank] = useState<Map<string, number> | null>(null);
+
+  // Debounced semantic search. Degrades to substring filtering when the
+  // pgvector/embeddings backend isn't set up (available:false) or on error.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 3) {
+      setSemanticRank(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await proposalsApi.search(q);
+        if (cancelled) return;
+        setSemanticRank(
+          res.available ? new Map(res.results.map((r) => [r.id, r.similarity])) : null
+        );
+      } catch {
+        if (!cancelled) setSemanticRank(null);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   const filteredProposals = useMemo(() => {
     let result = [...proposals];
 
-    // Search filter
+    // Search filter — semantic ranking when available, else substring match.
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.title.toLowerCase().includes(query) ||
-          p.metadata.clientName?.toLowerCase().includes(query)
-      );
+      if (semanticRank) {
+        result = result.filter((p) => semanticRank.has(p.id));
+      } else {
+        const query = searchQuery.toLowerCase();
+        result = result.filter(
+          (p) =>
+            p.title.toLowerCase().includes(query) ||
+            p.metadata.clientName?.toLowerCase().includes(query)
+        );
+      }
     }
 
     // Status filter
     if (statusFilter !== "ALL") {
       result = result.filter((p) => p.status === statusFilter);
+    }
+
+    // When semantic search is active, rank purely by similarity.
+    if (searchQuery && semanticRank) {
+      result.sort((a, b) => (semanticRank.get(b.id) ?? 0) - (semanticRank.get(a.id) ?? 0));
+      return result;
     }
 
     // Status order: PENDING first, then approved/rejected (and in-review)
@@ -74,7 +112,7 @@ export default function Proposals() {
     });
 
     return result;
-  }, [proposals, searchQuery, statusFilter, sortBy]);
+  }, [proposals, searchQuery, statusFilter, sortBy, semanticRank]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

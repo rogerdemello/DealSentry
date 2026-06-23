@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { requireAuth, isAdmin, canAccessCompany } from './middleware/auth';
+import { logger } from './lib/logger';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    console.log('GET /api/integrations - Returning:', {
+    logger.debug('GET /api/integrations - Returning:', {
       userId,
       count: integrations?.length || 0,
       integrations: integrations?.map((i: any) => ({
@@ -194,6 +195,8 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
+    // Imported proposals inherit the integration owner's company for tenant scoping.
+    const intCompanyId = req.user?.companyId ?? null;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -238,7 +241,7 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
 
         // If unauthorized and we have a refresh token, try to refresh
         if (response.status === 401 && refreshToken) {
-          console.log('Access token expired, refreshing...');
+          logger.debug('Access token expired, refreshing...');
           
           const tokenResponse = await fetch('https://api.hubapi.com/oauth/v1/token', {
             method: 'POST',
@@ -269,7 +272,7 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
               })
               .eq('id', id);
 
-            console.log('Token refreshed successfully');
+            logger.debug('Token refreshed successfully');
 
             // Retry the API call with new token
             response = await fetch(
@@ -423,7 +426,7 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
           const clientId = process.env.GOOGLE_CLIENT_ID;
           const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
           if (refreshToken && clientId && clientSecret) {
-            console.log('Gmail access token expired, refreshing...');
+            logger.debug('Gmail access token expired, refreshing...');
             const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -451,7 +454,7 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
                   updatedAt: new Date().toISOString(),
                 })
                 .eq('id', id);
-              console.log('Gmail token refreshed successfully');
+              logger.debug('Gmail token refreshed successfully');
               searchResponse = await fetch(
                 `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=50`,
                 { headers: gmailHeaders() }
@@ -686,7 +689,7 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
           const baseUrl = isSandbox ? 'https://test.salesforce.com' : 'https://login.salesforce.com';
           const tokenUrl = `${baseUrl}/services/oauth2/token`;
 
-          console.log('Salesforce access token expired, refreshing...');
+          logger.debug('Salesforce access token expired, refreshing...');
           const tokenResponse = await fetch(tokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -715,7 +718,7 @@ router.post('/:id/sync', requireAuth, async (req: Request, res: Response) => {
                 updatedAt: new Date().toISOString(),
               })
               .eq('id', id);
-            console.log('Salesforce token refreshed successfully');
+            logger.debug('Salesforce token refreshed successfully');
             response = await fetch(
               `${newInstanceUrl}/services/data/${apiVersion}/query?q=${encodeURIComponent(query)}`,
               { headers: sfHeaders() }
