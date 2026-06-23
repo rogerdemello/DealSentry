@@ -84,8 +84,10 @@ The repo ships a `render.yaml` Blueprint that runs the Dockerfile as a web servi
    `prisma/manual/semantic_search.sql` once; see `docs/SEMANTIC_SEARCH.md`.)
 
 Notes:
-- Use at least the **starter** plan; bump to **standard** (2 GB) if PDF export OOMs
-  (headless Chromium is memory-hungry). Avoid the **free** plan — it idles down.
+- The blueprint uses the **free** plan (512 MB). Two caveats: it **spins down after
+  ~15 min idle** (slow first request after a lull), and **PDF export may OOM** at
+  512 MB even with the Chromium memory flags — if exports fail, bump `plan` in
+  `render.yaml` to `starter`/`standard`. Everything else runs fine on free.
 - Render injects `PORT`; the server listens on it automatically.
 
 ## 5. Verify
