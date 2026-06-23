@@ -3,15 +3,17 @@
 # builds the Dockerfile, and provisions the service. Fill in the `sync: false`
 # secrets in the dashboard (they are intentionally not stored in git).
 #
-# Puppeteer/Chromium (PDF export) is memory-hungry — use at least the `starter`
-# plan; bump to `standard` (2 GB) if PDF exports OOM. Avoid the free plan: it
-# spins down on idle, which is bad for a persistent API.
+# Free plan (512 MB). Note the trade-offs:
+#   - Spins down after ~15 min idle → first request after a lull is slow (cold start).
+#   - PDF export (headless Chromium) is the one feature that may OOM at 512 MB even
+#     with the memory flags in src/api/proposals.ts. If PDF exports fail, the only
+#     real fix is to bump `plan` to `starter`/`standard`.
 services:
   - type: web
     name: dealsentry
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
