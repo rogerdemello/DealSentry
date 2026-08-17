@@ -32,18 +32,6 @@ export default function UploadProposal() {
           title: "Connected",
           description: "API connection restored successfully",
         });
-      } else if (outcome === "skipped") {
-        toast({
-          title: "Sign in required",
-          description: "Please sign in to connect to the API.",
-          variant: "destructive",
-        });
-      } else if (outcome === "unauthorized") {
-        toast({
-          title: "Session required",
-          description: "Please sign in again to use the API.",
-          variant: "destructive",
-        });
       } else {
         toast({
           title: "Still Offline",

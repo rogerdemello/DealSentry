@@ -201,17 +201,9 @@ export default function Integrations() {
     const base = getApiBaseUrl();
     const url = oauthUrls[integration.type];
     if (url) {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please login to connect integrations",
-          variant: "destructive",
-        });
-        setConnecting(null);
-        return;
-      }
-      window.location.href = `${base}${url}?token=${encodeURIComponent(token)}`;
+      // Top-level navigation, so no Authorization header — the server resolves
+      // the acting user itself now that there is no sign-in step.
+      window.location.href = `${base}${url}`;
     } else {
       setConnecting(null);
     }

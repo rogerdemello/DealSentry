@@ -3,15 +3,18 @@ import express from "express";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 
-// Supabase mock (requireAuth loads the user via .single()).
-const { mockSingle, supabaseMock } = vi.hoisted(() => {
+// Supabase mock (requireAuth loads the token user via .single(), the default
+// user via .limit()).
+const { mockSingle, mockLimit, supabaseMock } = vi.hoisted(() => {
   const mockSingle = vi.fn();
+  const mockLimit = vi.fn();
   const builder: Record<string, unknown> = {};
   builder.select = vi.fn(() => builder);
   builder.eq = vi.fn(() => builder);
   builder.single = mockSingle;
+  builder.limit = mockLimit;
   const supabaseMock = { from: vi.fn(() => builder) };
-  return { mockSingle, supabaseMock };
+  return { mockSingle, mockLimit, supabaseMock };
 });
 vi.mock("../src/lib/supabase", () => ({ supabase: supabaseMock, default: supabaseMock }));
 
@@ -20,6 +23,7 @@ const { getScopedAuditLogs } = vi.hoisted(() => ({ getScopedAuditLogs: vi.fn() }
 vi.mock("../src/api/lib/auditQuery", () => ({ getScopedAuditLogs }));
 
 import notificationsRouter from "../src/api/notifications";
+import { resetDefaultUser } from "../src/api/middleware/auth";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET as string;
 
@@ -50,13 +54,21 @@ const log = (id: string, isoOffsetMin: number) => ({
 
 beforeEach(() => {
   mockSingle.mockReset();
+  mockLimit.mockReset();
+  mockLimit.mockResolvedValue({
+    data: [{ id: "default", email: "admin@b.com", role: "ADMIN", company_id: null }],
+    error: null,
+  });
+  resetDefaultUser();
   getScopedAuditLogs.mockReset();
 });
 
 describe("GET /api/notifications", () => {
-  it("401 without a token", async () => {
+  it("serves the default user's notifications without a token", async () => {
+    getScopedAuditLogs.mockResolvedValue([log("a", 5)]);
     const res = await request(buildApp()).get("/api/notifications");
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
   });
 
   it("returns all items as unread when no `since` is given", async () => {

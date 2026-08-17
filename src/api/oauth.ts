@@ -1,37 +1,29 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { supabase } from '../lib/supabase';
-import { requireAuth } from './middleware/auth';
+import { requireAuth, resolveSessionUser } from './middleware/auth';
 import { logger } from './lib/logger';
-import jwt from 'jsonwebtoken';
 
 const router = Router();
 
 // Frontend URL for OAuth redirects
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
-// Middleware to check auth from token query parameter (for OAuth redirects)
-const requireAuthFromQuery = (req: Request, res: Response, next: Function) => {
-  const token = req.query.token as string;
-  
-  if (!token) {
-    return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
-  }
-
+/**
+ * Auth for OAuth redirects. These are top-level browser navigations, so no
+ * Authorization header is available — the token (when there is one) rides in the
+ * query string. With login removed there usually isn't one, and the request
+ * falls back to the default user, same as every other route.
+ */
+const requireAuthFromQuery = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as {
-      userId: string;
-      email?: string;
-      role?: string;
-      companyId?: string | null;
-    };
-    req.user = {
-      id: decoded.userId,
-      email: decoded.email ?? '',
-      role: decoded.role ?? '',
-      companyId: decoded.companyId ?? null,
-    };
+    const { user } = await resolveSessionUser(req.query.token as string | undefined);
+    if (!user) {
+      return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
+    }
+    req.user = user;
     next();
   } catch (error) {
+    logger.error('OAuth session lookup failed', error as Error);
     return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
   }
 };
