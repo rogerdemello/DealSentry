@@ -39,7 +39,7 @@ services:
       # No sign-in screen: every request is served as this user. Falls back to
       # the first ADMIN in the User table if unset.
       - key: DEMO_USER_EMAIL
-        value: admin@dealsentry.ai
+        value: admin@reviewer.ai
       - key: AZURE_OPENAI_DEPLOYMENT
         value: gpt-4o
       - key: AZURE_OPENAI_API_VERSION
