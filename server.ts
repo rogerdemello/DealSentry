@@ -5,7 +5,7 @@ import { config } from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { authLimiter, aiLimiter } from './src/api/middleware/rateLimit';
+import { aiLimiter } from './src/api/middleware/rateLimit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,12 +58,16 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, Postman, or curl)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      // Don't throw: an unknown origin should just miss the CORS headers, not turn
+      // every request into a 500. In production the SPA is served by this same
+      // process, so same-origin calls must keep working even if PRODUCTION_URL
+      // is unset or misconfigured in the dashboard.
+      console.warn(`CORS: origin not in allow list: ${origin}`);
+      callback(null, false);
     }
   },
   credentials: true,
@@ -76,7 +80,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/auth', authLimiter, authRouter);
+// authLimiter is applied per-route inside the router so the read-only /session
+// lookup the SPA makes on every load isn't throttled alongside credential posts.
+app.use('/api/auth', authRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/rules', rulesRouter);
 app.use('/api/templates', templatesRouter);

@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { authApi } from "@/lib/api-client";
-import { getCurrentUser } from "@/lib/auth-utils";
+import { useSession } from "@/hooks/use-session";
 
 export default function Settings() {
   const { toast } = useToast();
-  const currentUser = getCurrentUser();
+  const currentUser = useSession();
   
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

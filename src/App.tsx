@@ -2,13 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProposalProvider } from "@/context/ProposalProvider";
 import { useApiConnection } from "@/hooks/use-api-connection";
+import { useSession } from "@/hooks/use-session";
 import ClientLayout from "@/components/layout/ClientLayout";
-import ProtectedRoute from "@/components/ProtectedRoute";
 import Home from "@/pages/Home";
-import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Proposals from "@/pages/Proposals";
 import UploadProposal from "@/pages/UploadProposal";
@@ -28,25 +27,29 @@ function AppContent() {
   // Monitor API connection status
   useApiConnection();
 
+  // No login screen: resolve the acting user once, up front.
+  useSession();
+
   return (
     <ClientLayout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/login" element={<Auth />} />
-        <Route path="/signup" element={<Auth />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/proposals" element={<ProtectedRoute><Proposals /></ProtectedRoute>} />
-        <Route path="/proposals/upload" element={<ProtectedRoute><UploadProposal /></ProtectedRoute>} />
-        <Route path="/proposals/new" element={<ProtectedRoute><NewProposal /></ProtectedRoute>} />
-        <Route path="/proposals/create" element={<ProtectedRoute><CreateProposal /></ProtectedRoute>} />
-        <Route path="/proposals/:id/review" element={<ProtectedRoute><ProposalReview /></ProtectedRoute>} />
-        <Route path="/proposals/:id" element={<ProtectedRoute><ProposalReview /></ProtectedRoute>} />
-        <Route path="/compliance" element={<ProtectedRoute><Compliance /></ProtectedRoute>} />
-        <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
-        <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+        {/* Sign-in was removed — old auth links land on the dashboard. */}
+        <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/proposals" element={<Proposals />} />
+        <Route path="/proposals/upload" element={<UploadProposal />} />
+        <Route path="/proposals/new" element={<NewProposal />} />
+        <Route path="/proposals/create" element={<CreateProposal />} />
+        <Route path="/proposals/:id/review" element={<ProposalReview />} />
+        <Route path="/proposals/:id" element={<ProposalReview />} />
+        <Route path="/compliance" element={<Compliance />} />
+        <Route path="/integrations" element={<Integrations />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/audit" element={<Audit />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </ClientLayout>

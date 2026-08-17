@@ -1,14 +1,13 @@
-import { ReactNode, useEffect, useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { ReactNode } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
+import {
   LayoutDashboard,
   FileText,
   Shield,
   Link2,
   BarChart3,
   ClipboardList,
-  LogOut,
   ChevronRight,
   Sparkles,
   User,
@@ -16,7 +15,7 @@ import {
   Home as HomeIcon,
   Settings as SettingsIcon
 } from "lucide-react";
-import { isAuthenticated, getCurrentUser, clearAuthData } from "@/lib/auth-utils";
+import { useSession } from "@/hooks/use-session";
 import NotificationBell from "@/components/NotificationBell";
 
 interface ClientLayoutProps {
@@ -41,35 +40,13 @@ const navItems: NavItem[] = [
 ];
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState<string>("");
-  const [userName, setUserName] = useState<string>("");
+  const user = useSession();
+  const userRole = user?.role || "";
+  const userName = user?.name || user?.email || "User";
 
-  useEffect(() => {
-    const loggedIn = isAuthenticated();
-    const currentUser = getCurrentUser();
-
-    setIsLoggedIn(loggedIn);
-    setUserRole(currentUser?.role || "");
-    setUserName(currentUser?.name || currentUser?.email || "User");
-
-    // Allow access to home page and auth pages without authentication
-    const publicPaths = ["/", "/login", "/auth", "/signup"];
-    if (!loggedIn && !publicPaths.includes(location.pathname)) {
-      navigate("/login", { replace: true, state: { from: location } });
-    }
-  }, [location.pathname, navigate]);
-
-  const handleLogout = () => {
-    clearAuthData();
-    navigate("/");
-  };
-
-  // Don't show sidebar on auth pages or home page
-  const authPaths = ["/login", "/auth", "/signup"];
-  if (authPaths.includes(location.pathname) || location.pathname === "/") {
+  // Don't show the sidebar on the landing page
+  if (location.pathname === "/") {
     return <>{children}</>;
   }
 
@@ -172,13 +149,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
               </span>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-2.5 mt-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-all duration-200"
-          >
-            <LogOut className="w-[18px] h-[18px]" />
-            <span className="font-medium text-[14px]">Sign out</span>
-          </button>
         </div>
       </motion.aside>
 
@@ -192,7 +162,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="absolute top-2 right-2 z-40 flex items-center gap-2"
           >
-            {isLoggedIn && <NotificationBell />}
+            <NotificationBell />
             <Link
               to="/"
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-card/95 backdrop-blur-sm border border-border/60 shadow-sm hover:shadow-md hover:bg-muted/50 transition-all duration-200 text-xs font-medium text-foreground hover:text-primary"

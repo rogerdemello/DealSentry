@@ -3,22 +3,21 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { supabase } from '../lib/supabase';
 import { requireAuth } from './middleware/auth';
+import { authLimiter } from './middleware/rateLimit';
 
 const router = Router();
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
 const SALT_ROUNDS = 10;
 
-/** Shape of the signed JWT payload issued at login/register. */
-interface JwtPayload {
-  userId: string;
-  email: string;
-  role: string;
-  companyId: string | null;
-}
+// GET current session. There is no login screen, so this reports whichever user
+// requireAuth resolved (a valid token if one was sent, otherwise the default user).
+router.get('/session', requireAuth, (req: Request, res: Response) => {
+  res.json({ user: req.user });
+});
 
 // POST login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -75,7 +74,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // POST register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', authLimiter, async (req: Request, res: Response) => {
   try {
     const { email, name, password } = req.body;
 
@@ -146,54 +145,13 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-// GET verify token
-router.get('/verify', async (req: Request, res: Response) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-
-    const { data: user, error } = await supabase
-      .from('User')
-      .select('*')
-      .eq('id', decoded.userId)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
-    const companyId = (user as { company_id?: string }).company_id ?? null;
-
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        companyId,
-      },
-    });
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ error: 'Session expired', code: 'TOKEN_EXPIRED' });
-      return;
-    }
-    if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({ error: 'Invalid token', code: 'INVALID_TOKEN' });
-      return;
-    }
-    console.error('Error verifying token:', error);
-    res.status(401).json({ error: 'Invalid token' });
-  }
+// GET verify — kept as an alias of /session for older clients.
+router.get('/verify', requireAuth, (req: Request, res: Response) => {
+  res.json({ user: req.user });
 });
 
 // POST change password
-router.post('/change-password', requireAuth, async (req: Request, res: Response) => {
+router.post('/change-password', authLimiter, requireAuth, async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
     // requireAuth populates req.user with the AuthUser shape (id, not userId).
