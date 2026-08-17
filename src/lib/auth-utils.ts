@@ -1,5 +1,9 @@
 /**
- * Authentication utility functions for managing user sessions
+ * Session helpers.
+ *
+ * The app has no login screen: the API resolves a default user for every request
+ * and the SPA caches that identity in localStorage so the sidebar, role-gated nav
+ * and Settings can render it without an extra round trip on each page.
  */
 
 export interface AuthUser {
@@ -11,21 +15,15 @@ export interface AuthUser {
 }
 
 /**
- * Get the currently authenticated user from localStorage
+ * Get the current user from the cached session, or null before /api/auth/session
+ * has resolved.
  */
 export function getCurrentUser(): AuthUser | null {
-  const token = localStorage.getItem('auth_token');
-  const isLoggedIn = localStorage.getItem('isLoggedIn');
-
-  if (!token || isLoggedIn !== 'true') {
-    return null;
-  }
+  if (typeof window === 'undefined') return null;
 
   const userId = localStorage.getItem('userId');
   const email = localStorage.getItem('userEmail');
-  const name = localStorage.getItem('userName');
   const role = localStorage.getItem('userRole');
-  const companyId = localStorage.getItem('companyId');
 
   if (!userId || !email || !role) {
     return null;
@@ -34,39 +32,29 @@ export function getCurrentUser(): AuthUser | null {
   return {
     id: userId,
     email,
-    name: name || null,
+    name: localStorage.getItem('userName') || null,
     role,
-    companyId: companyId || null,
+    companyId: localStorage.getItem('companyId') || null,
   };
 }
 
 /**
- * Check if user is authenticated
+ * Always true — sign-in was removed, so every visitor is treated as a valid
+ * session. Kept so callers don't need to special-case the old auth flow.
  */
 export function isAuthenticated(): boolean {
-  const token = localStorage.getItem('auth_token');
-  const isLoggedIn = localStorage.getItem('isLoggedIn');
-  return !!token && isLoggedIn === 'true';
+  return true;
 }
 
-/**
- * Get the authentication token
- */
-export function getAuthToken(): string | null {
-  return localStorage.getItem('auth_token');
-}
+/** Cache the session user returned by /api/auth/session. */
+export function cacheSessionUser(user: AuthUser): void {
+  if (typeof window === 'undefined') return;
 
-/**
- * Set authentication data in localStorage
- */
-export function setAuthData(token: string, user: AuthUser): void {
-  localStorage.setItem('auth_token', token);
-  localStorage.setItem('isLoggedIn', 'true');
   localStorage.setItem('userId', user.id);
   localStorage.setItem('userEmail', user.email);
   localStorage.setItem('userName', user.name || user.email);
   localStorage.setItem('userRole', user.role);
-  
+
   if (user.companyId) {
     localStorage.setItem('companyId', user.companyId);
   } else {
@@ -74,10 +62,10 @@ export function setAuthData(token: string, user: AuthUser): void {
   }
 }
 
-/**
- * Clear all authentication data
- */
+/** Clear the cached session. */
 export function clearAuthData(): void {
+  if (typeof window === 'undefined') return;
+
   localStorage.removeItem('auth_token');
   localStorage.removeItem('isLoggedIn');
   localStorage.removeItem('userId');
@@ -87,9 +75,7 @@ export function clearAuthData(): void {
   localStorage.removeItem('companyId');
 }
 
-/**
- * Check if user has a specific role
- */
+/** Check if the current user has a specific role. */
 export function hasRole(role: string | string[]): boolean {
   const currentUser = getCurrentUser();
   if (!currentUser) return false;
@@ -101,9 +87,7 @@ export function hasRole(role: string | string[]): boolean {
   return currentUser.role === role;
 }
 
-/**
- * Check if user is an admin
- */
+/** Check if the current user is an admin. */
 export function isAdmin(): boolean {
   return hasRole('ADMIN');
 }
