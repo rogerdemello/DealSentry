@@ -1,7 +1,6 @@
 import React, { useState, useEffect, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { proposalsApi, Proposal, ApiError } from "@/lib/api-client";
-import { clearAuthData, isAuthenticated, getAuthToken } from "@/lib/auth-utils";
+import { proposalsApi, Proposal } from "@/lib/api-client";
 import { mockProposals } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalContext } from "@/context/proposal-context";
@@ -27,9 +26,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
       const outcome = await fetchProposals();
       if (cancelled) return;
 
-      if (outcome === "skipped" || outcome === "unauthorized") {
-        return;
-      }
       if (outcome === "ok") {
         return;
       }
@@ -43,7 +39,7 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
         toast({
           title: "Offline Mode",
           description:
-            "Running with mock data. Ensure the API is running (e.g. npm run server) and try signing in again.",
+            "Running with mock data. Ensure the API is running (e.g. npm run server).",
           variant: "destructive",
         });
       }
@@ -56,11 +52,10 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (isApiConnected || !isAuthenticated()) {
+    if (isApiConnected) {
       return;
     }
     const interval = setInterval(async () => {
-      if (!isAuthenticated()) return;
       console.log("Checking API connectivity...");
       const outcome = await fetchProposals(true);
       if (outcome === "ok" && !isApiConnected) {
@@ -74,19 +69,7 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isApiConnected, location.pathname]);
 
-  const fetchProposals = async (
-    silent = false
-  ): Promise<"ok" | "unauthorized" | "offline" | "skipped"> => {
-    if (!isAuthenticated()) {
-      if (!silent) {
-        setLoading(false);
-      }
-      setError(null);
-      setProposals([]);
-      setIsApiConnected(false);
-      return "skipped";
-    }
-
+  const fetchProposals = async (silent = false): Promise<"ok" | "offline"> => {
     if (!silent) {
       setLoading(true);
     }
@@ -98,25 +81,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
       setIsApiConnected(true);
       return "ok";
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        if (!silent) {
-          console.warn("Session not accepted for proposals API:", err.message);
-        }
-        setProposals([]);
-        setIsApiConnected(true);
-        if (getAuthToken()) {
-          clearAuthData();
-          if (typeof window !== "undefined") {
-            const p = window.location.pathname;
-            const publicLanding =
-              p === "/" || /^\/(login|signup|auth)(\/|$)/.test(p);
-            if (!publicLanding) {
-              window.location.assign("/login");
-            }
-          }
-        }
-        return "unauthorized";
-      }
       if (!silent) {
         console.warn("API not available, using mock data:", err);
       }

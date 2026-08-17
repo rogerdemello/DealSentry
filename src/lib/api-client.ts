@@ -1,5 +1,3 @@
-import { clearAuthData } from '@/lib/auth-utils';
-
 /** Thrown for non-OK HTTP responses so callers can distinguish 401 from network failures. */
 export class ApiError extends Error {
   constructor(
@@ -181,17 +179,6 @@ async function apiCall<T>(
       error?: string;
       code?: string;
     };
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    const isAuthPage = /^\/(auth|login|signup)(\/|$)/.test(path);
-    if (
-      response.status === 401 &&
-      (error.code === 'TOKEN_EXPIRED' || error.code === 'INVALID_TOKEN') &&
-      typeof window !== 'undefined' &&
-      !isAuthPage
-    ) {
-      clearAuthData();
-      window.location.assign('/login');
-    }
     throw new ApiError(
       error.error || `API error: ${response.status}`,
       response.status,
@@ -351,24 +338,9 @@ export const usersApi = {
     }),
 };
 
-// Auth API
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
-
+// Session API — no login screen; the server resolves the acting user.
 export const authApi = {
-  login: (email: string, password: string) =>
-    apiCall<AuthResponse>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
-  register: (email: string, password: string, name?: string) =>
-    apiCall<AuthResponse>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-    }),
-  verify: () => apiCall<{ user: User }>('/api/auth/verify'),
+  session: () => apiCall<{ user: User }>('/api/auth/session'),
   changePassword: (currentPassword: string, newPassword: string) =>
     apiCall<{ message: string }>('/api/auth/change-password', {
       method: 'POST',

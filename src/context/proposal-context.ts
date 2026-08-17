@@ -14,7 +14,7 @@ export interface ProposalContextType {
   ) => Promise<Proposal | null>;
   deleteProposal: (id: string) => Promise<void>;
   analyzeProposal: (id: string) => Promise<void>;
-  refreshProposals: () => Promise<"ok" | "unauthorized" | "offline" | "skipped">;
+  refreshProposals: () => Promise<"ok" | "offline">;
   isApiConnected: boolean;
 }
 

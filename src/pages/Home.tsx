@@ -115,17 +115,14 @@ export default function Home() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button asChild size="lg" className="text-base px-8">
-                <Link to="/signup">
+                <Link to="/dashboard">
                   Get Started
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
               </Button>
-              <Button asChild variant="secondary" size="lg" className="text-base px-8">
-                <Link to="/login">Sign in</Link>
-              </Button>
               <Button asChild variant="outline" size="lg" className="text-base px-8">
-                <Link to="/dashboard">
-                  View Dashboard
+                <Link to="/proposals">
+                  Browse Proposals
                   <Search className="ml-2 w-5 h-5" />
                 </Link>
               </Button>
@@ -231,8 +228,8 @@ export default function Home() {
               Join enterprise teams who trust DealSentry to streamline their proposal process
             </p>
             <Button asChild size="lg" className="text-base px-8">
-              <Link to="/login">
-                Sign In to Continue
+              <Link to="/dashboard">
+                Go to Dashboard
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
