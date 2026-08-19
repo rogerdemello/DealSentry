@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Upload, X, Loader2, ArrowLeft, CheckCircle, Sparkles, FileText, RefreshCw } from "lucide-react";
+import { Upload, X, Loader2, ArrowLeft, CheckCircle, Sparkles, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +39,7 @@ export default function UploadProposal() {
           variant: "destructive",
         });
       }
-    } catch (err) {
+    } catch {
       toast({
         title: "Connection Failed",
         description: "Please check if the API server is running (npm run server)",

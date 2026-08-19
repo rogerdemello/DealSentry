@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Calendar, Building2, Eye, FileText, DollarSign, Percent, Trash2, Sparkles } from "lucide-react";
+import { Calendar, Building2, Eye, DollarSign, Percent, Trash2, Sparkles } from "lucide-react";
 import { Proposal } from "@/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScoreBar } from "@/components/ui/ScoreBar";
@@ -30,7 +29,7 @@ interface ProposalCardProps {
   onSelect?: (checked: boolean) => void;
 }
 
-export function ProposalCard({ proposal, index = 0, isSelected = false, onSelect }: ProposalCardProps) {
+export function ProposalCard({ proposal, isSelected = false, onSelect }: ProposalCardProps) {
   const { deleteProposal, refreshProposals } = useProposals();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,7 +54,7 @@ export function ProposalCard({ proposal, index = 0, isSelected = false, onSelect
         description: "The proposal has been analyzed successfully.",
       });
       await refreshProposals();
-    } catch (error) {
+    } catch {
       toast({
         title: "Analysis Failed",
         description: "Failed to analyze the proposal. Please try again.",

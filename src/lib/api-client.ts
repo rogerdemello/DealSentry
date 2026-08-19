@@ -123,7 +123,7 @@ export async function checkApiHealth(): Promise<boolean> {
       signal: AbortSignal.timeout(5000), // 5 second timeout
     });
     return response.ok;
-  } catch (error) {
+  } catch {
     return false;
   }
 }

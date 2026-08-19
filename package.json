@@ -10,7 +10,7 @@
     "server": "tsx --watch server.ts",
     "start": "npm run build && npx tsx server.ts",
     "dev:full": "concurrently --kill-others \"npm run server\" \"wait-on http://localhost:3001/api/health && npm run dev\"",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
