@@ -1,0 +1,255 @@
+src/api/integrations.ts
+  s_69f97138746280::t_63d2b98b1c224a 3
+  s_69f97138746280::t_a53b690dae6b5b 179-187
+  s_69f97138746280::t_b1415dd2f03199 469,728,909
+  s_69f97138746280::t_5ad98bbdf71747 227-293
+  s_69f97138746280::t_cb463b0038bc62 920-921
+  s_69f97138746280::t_87f927bab91b3f 939-940,943
+src/api/proposals.ts
+  s_69f97138746280::t_ec71244aeea16b 1122-1125
+scripts/cleanup-integrations.ts
+  s_69f97138746280::t_4323eaad3e3744 1-84
+src/api/oauth.ts
+  s_69f97138746280::t_c2e29f981960d7 152-154,357-359,515-517
+  s_69f97138746280::t_53cb58910d9b08 47-51,207-211,255-259,424-428
+  s_69f97138746280::t_fdff4521e2069e 364
+  s_69f97138746280::t_3671e35a7e98d6 3
+prisma/manual/semantic_search.sql
+  s_69f97138746280::t_b3216d9d052e4c 14-18
+prisma/seed.ts
+  s_69f97138746280::t_a452d28ca41740 39-50
+prisma/manual/storage_bucket.sql
+  s_69f97138746280::t_ff52c04f211a0a 1-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "d355d1ef9e200edd1b60f00c7547ad482bd76760",
+  "branch": "fix/workflow-bugs",
+  "prompts": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "messages_url": "cas:bc9d44fd676b3b3746a8cd5f17dcf2ff79c3878a20b2043045a1cbaca01b8c80",
+      "total_additions": 675,
+      "total_deletions": 77,
+      "accepted_lines": 3076,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "messages_url": "cas:bc9d44fd676b3b3746a8cd5f17dcf2ff79c3878a20b2043045a1cbaca01b8c80",
+      "stats": {
+        "total_additions": 675,
+        "total_deletions": 77,
+        "accepted_lines": 3076,
+        "overriden_lines": 0,
+        "files": {
+          ".env.example": {
+            "total_additions": 4,
+            "total_deletions": 0,
+            "accepted_lines": 4,
+            "overriden_lines": 0
+          },
+          "ARCHITECTURE.md": {
+            "total_additions": 122,
+            "total_deletions": 0,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "README.md": {
+            "total_additions": 14,
+            "total_deletions": 1,
+            "accepted_lines": 14,
+            "overriden_lines": 0
+          },
+          "docs/DEMO_SCRIPT.md": {
+            "total_additions": 76,
+            "total_deletions": 0,
+            "accepted_lines": 76,
+            "overriden_lines": 0
+          },
+          "eslint.config.mjs": {
+            "total_additions": 8,
+            "total_deletions": 0,
+            "accepted_lines": 54,
+            "overriden_lines": 0
+          },
+          "package.json": {
+            "total_additions": 1,
+            "total_deletions": 1,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "prisma/manual/semantic_search.sql": {
+            "total_additions": 5,
+            "total_deletions": 0,
+            "accepted_lines": 40,
+            "overriden_lines": 0
+          },
+          "prisma/manual/storage_bucket.sql": {
+            "total_additions": 24,
+            "total_deletions": 0,
+            "accepted_lines": 24,
+            "overriden_lines": 0
+          },
+          "prisma/schema.prisma": {
+            "total_additions": 6,
+            "total_deletions": 0,
+            "accepted_lines": 155,
+            "overriden_lines": 0
+          },
+          "prisma/seed.ts": {
+            "total_additions": 12,
+            "total_deletions": 1,
+            "accepted_lines": 12,
+            "overriden_lines": 0
+          },
+          "render.yaml": {
+            "total_additions": 3,
+            "total_deletions": 0,
+            "accepted_lines": 66,
+            "overriden_lines": 0
+          },
+          "scripts/cleanup-integrations.ts": {
+            "total_additions": 84,
+            "total_deletions": 0,
+            "accepted_lines": 84,
+            "overriden_lines": 0
+          },
+          "scripts/migrate-auth.ts": {
+            "total_additions": 1,
+            "total_deletions": 1,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "server.ts": {
+            "total_additions": 2,
+            "total_deletions": 1,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/api/files.ts": {
+            "total_additions": 6,
+            "total_deletions": 5,
+            "accepted_lines": 6,
+            "overriden_lines": 0
+          },
+          "src/api/integrations.ts": {
+            "total_additions": 84,
+            "total_deletions": 7,
+            "accepted_lines": 1043,
+            "overriden_lines": 0
+          },
+          "src/api/oauth.ts": {
+            "total_additions": 31,
+            "total_deletions": 9,
+            "accepted_lines": 31,
+            "overriden_lines": 0
+          },
+          "src/api/proposals.ts": {
+            "total_additions": 4,
+            "total_deletions": 2,
+            "accepted_lines": 4,
+            "overriden_lines": 0
+          },
+          "src/api/templates.ts": {
+            "total_additions": 3,
+            "total_deletions": 2,
+            "accepted_lines": 3,
+            "overriden_lines": 0
+          },
+          "src/api/users.ts": {
+            "total_additions": 34,
+            "total_deletions": 14,
+            "accepted_lines": 145,
+            "overriden_lines": 0
+          },
+          "src/components/proposals/ProposalCard.tsx": {
+            "total_additions": 3,
+            "total_deletions": 4,
+            "accepted_lines": 3,
+            "overriden_lines": 0
+          },
+          "src/context/ProposalProvider.tsx": {
+            "total_additions": 11,
+            "total_deletions": 11,
+            "accepted_lines": 11,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-api-connection.ts": {
+            "total_additions": 7,
+            "total_deletions": 5,
+            "accepted_lines": 7,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-toast.ts": {
+            "total_additions": 2,
+            "total_deletions": 2,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/lib/api-client.ts": {
+            "total_additions": 1,
+            "total_deletions": 1,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "src/lib/supabase.ts": {
+            "total_additions": 12,
+            "total_deletions": 3,
+            "accepted_lines": 30,
+            "overriden_lines": 0
+          },
+          "src/lib/utils.ts": {
+            "total_additions": 2,
+            "total_deletions": 2,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/pages/Compliance.tsx": {
+            "total_additions": 1,
+            "total_deletions": 1,
+            "accepted_lines": 544,
+            "overriden_lines": 0
+          },
+          "src/pages/ProposalReview.tsx": {
+            "total_additions": 0,
+            "total_deletions": 1,
+            "accepted_lines": 0,
+            "overriden_lines": 0
+          },
+          "src/pages/UploadProposal.tsx": {
+            "total_additions": 2,
+            "total_deletions": 2,
+            "accepted_lines": 358,
+            "overriden_lines": 0
+          },
+          "tests/users.test.ts": {
+            "total_additions": 109,
+            "total_deletions": 0,
+            "accepted_lines": 109,
+            "overriden_lines": 0
+          },
+          "vite.config.ts": {
+            "total_additions": 1,
+            "total_deletions": 1,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          }
+        }
+      }
+    }
+  }
+}
