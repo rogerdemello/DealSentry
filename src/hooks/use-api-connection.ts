@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { checkApiHealth } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,7 +27,9 @@ export function useApiConnection(
   const toastIdRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const checkConnection = async () => {
+  // Stable identity so the effects below can list it as a dependency without
+  // re-running on every render (`toast` is a stable module-level function).
+  const checkConnection = useCallback(async () => {
     setStatus(prev => ({ ...prev, isChecking: true }));
     
     try {
@@ -69,7 +71,7 @@ export function useApiConnection(
       }));
       wasConnectedRef.current = false;
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     // Initial check
@@ -93,7 +95,7 @@ export function useApiConnection(
         clearInterval(intervalRef.current);
       }
     };
-  }, [status.isConnected, checkInterval, retryInterval]);
+  }, [status.isConnected, checkInterval, retryInterval, checkConnection]);
 
   // Check connection when window regains focus
   useEffect(() => {
@@ -103,7 +105,7 @@ export function useApiConnection(
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [checkConnection]);
 
   return {
     ...status,

@@ -43,4 +43,12 @@ export default tseslint.config(
       "no-useless-escape": "warn",
     },
   },
+  {
+    // shadcn/ui generated components export variants/hooks alongside the
+    // component by design; fast-refresh purity doesn't apply to them.
+    files: ["src/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactNode } from "react";
+import React, { useState, useEffect, useRef, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { proposalsApi, Proposal } from "@/lib/api-client";
 import { mockProposals } from "@/data/mockData";
@@ -14,7 +14,9 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isApiConnected, setIsApiConnected] = useState(false);
-  const [hasShownOfflineWarning, setHasShownOfflineWarning] = useState(false);
+  // Ref, not state: never rendered, and keeping it out of effect dependencies
+  // means showing the warning doesn't restart the retry loop.
+  const hasShownOfflineWarningRef = useRef(false);
 
   useEffect(() => {
     let retryCount = 0;
@@ -34,8 +36,8 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
         retryCount++;
         console.log(`API connection failed, retrying... (${retryCount}/${maxRetries})`);
         setTimeout(attemptFetch, retryDelay);
-      } else if (!hasShownOfflineWarning) {
-        setHasShownOfflineWarning(true);
+      } else if (!hasShownOfflineWarningRef.current) {
+        hasShownOfflineWarningRef.current = true;
         toast({
           title: "Offline Mode",
           description:
@@ -49,6 +51,7 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only on navigation; fetchProposals/toast are stable
   }, [location.pathname]);
 
   useEffect(() => {
@@ -67,6 +70,7 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     }, 30000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- poll only while disconnected; fetchProposals/toast are stable
   }, [isApiConnected, location.pathname]);
 
   const fetchProposals = async (silent = false): Promise<"ok" | "offline"> => {
@@ -219,13 +223,9 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
-      await proposalsApi.analyze(id);
-      const updatedProposal = await proposalsApi.getById(id);
-      setProposals((prev) => prev.map((p) => (p.id === id ? updatedProposal : p)));
-    } catch (err) {
-      throw err;
-    }
+    await proposalsApi.analyze(id);
+    const updatedProposal = await proposalsApi.getById(id);
+    setProposals((prev) => prev.map((p) => (p.id === id ? updatedProposal : p)));
   };
 
   return (
