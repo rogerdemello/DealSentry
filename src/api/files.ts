@@ -1,13 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import mammoth from 'mammoth';
+import { requireAuth } from './middleware/auth';
 
 const router = Router();
 
 // POST upload file
-router.post('/upload', async (req: Request, res: Response) => {
+router.post('/upload', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { file, fileName, proposalId } = req.body;
+    const { file, fileName } = req.body;
 
     if (!file || !fileName) {
       return res.status(400).json({ error: 'File and fileName are required' });
@@ -72,7 +73,7 @@ router.post('/upload', async (req: Request, res: Response) => {
 });
 
 // GET file
-router.get('/download/:filename', async (req: Request, res: Response) => {
+router.get('/download/:filename', requireAuth, async (req: Request, res: Response) => {
   try {
     const { filename } = req.params;
     const filePath = `proposals/${filename}`;
@@ -97,7 +98,7 @@ router.get('/download/:filename', async (req: Request, res: Response) => {
 });
 
 // DELETE file
-router.delete('/delete/:filename', async (req: Request, res: Response) => {
+router.delete('/delete/:filename', requireAuth, async (req: Request, res: Response) => {
   try {
     const { filename } = req.params;
     const filePath = `proposals/${filename}`;
@@ -116,7 +117,7 @@ router.delete('/delete/:filename', async (req: Request, res: Response) => {
 });
 
 // POST extract text from document
-router.post('/extract-text', async (req: Request, res: Response) => {
+router.post('/extract-text', requireAuth, async (req: Request, res: Response) => {
   try {
     const { file, fileName } = req.body;
 

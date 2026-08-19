@@ -1,10 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
+import { requireAuth, isAdmin } from './middleware/auth';
 
 const router = Router();
 
+// select('*') tolerates schema drift (e.g. missing company_id), so strip
+// sensitive columns here instead of relying on a column list.
+function sanitizeUser<T extends { password?: unknown }>(user: T): Omit<T, 'password'> {
+  const { password: _password, ...safe } = user;
+  return safe;
+}
+
 // GET all users
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const { data: users, error } = await supabase
       .from('User')
@@ -13,7 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    res.json(users || []);
+    res.json((users || []).map(sanitizeUser));
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -21,10 +29,10 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET single user
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     const { data: user, error } = await supabase
       .from('User')
       .select('*')
@@ -36,16 +44,20 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    res.json(sanitizeUser(user));
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
-// POST create user
-router.post('/', async (req: Request, res: Response) => {
+// POST create user (admin only — can assign roles)
+router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Only administrators can create users' });
+    }
+
     const { email, name, role } = req.body;
 
     if (!email) {
@@ -66,20 +78,24 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (error) throw error;
 
-    res.status(201).json(user);
+    res.status(201).json(sanitizeUser(user));
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
-// PATCH update user
-router.patch('/:id', async (req: Request, res: Response) => {
+// PATCH update user (admin only — role changes are privilege changes)
+router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Only administrators can update users' });
+    }
+
     const { id } = req.params;
     const { email, name, role } = req.body;
 
-    const updates: any = { updatedAt: new Date().toISOString() };
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (email !== undefined) updates.email = email;
     if (name !== undefined) updates.name = name;
     if (role !== undefined) updates.role = role;
@@ -96,16 +112,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    res.json(sanitizeUser(user));
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
 
-// DELETE user
-router.delete('/:id', async (req: Request, res: Response) => {
+// DELETE user (admin only)
+router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Only administrators can delete users' });
+    }
+
     const { id } = req.params;
 
     const { error } = await supabase
