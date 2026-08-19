@@ -36,7 +36,18 @@ async function seed() {
       });
     }
 
-    console.log('✅ Created users: 1 admin + 5 test users');
+    // Demo sales rep who owns the sample proposals below.
+    const demoUser = await prisma.user.upsert({
+      where: { email: 'demo@dealsentry.ai' },
+      update: {},
+      create: {
+        email: 'demo@dealsentry.ai',
+        name: 'Demo User',
+        role: 'SALES_REP',
+      },
+    });
+
+    console.log('✅ Created users: 1 admin + 1 demo + 5 test users');
 
     // Create compliance rules
     const rules = [
