@@ -519,7 +519,6 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
     const pricingRisk = riskReport?.pricingRisk || 0;
     const structuralRisk = riskReport?.structuralRisk || 0;
     const findings = (riskReport?.findings as any[]) || [];
-    const recommendations = (riskReport?.recommendations as any[]) || [];
 
     // Get current user info
     const userInfo = proposal.User as UserRow;
@@ -1120,7 +1119,10 @@ router.get('/:id/export/pdf', requireAuth, async (req: Request, res: Response) =
         '--single-process',
         '--disable-extensions',
       ],
-      headless: true
+      // 'new' headless runs the regular Chrome binary; `true` (old headless)
+      // makes Puppeteer look for the separate chrome-headless-shell install,
+      // which breaks local dev where only Chrome is downloaded.
+      headless: 'new'
     });
     const page = await browser.newPage();
     await page.setContent(plainHtml, { waitUntil: 'networkidle0' });
