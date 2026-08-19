@@ -1,0 +1,72 @@
+ARCHITECTURE.md
+  s_69f97138746280::t_5684653b6b7c06 1-122
+prisma/schema.prisma
+  s_69f97138746280::t_1f34e854408412 58-59
+README.md
+  s_69f97138746280::t_9873deb71fe5ad 52,56-64
+  s_69f97138746280::t_e930d72390bc6c 77-78
+docs/DEMO_SCRIPT.md
+  s_69f97138746280::t_d87c1adff3c064 1-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "89ba1fb911727c8a260956520d9c91dbd0a5f869",
+  "branch": "fix/workflow-bugs",
+  "prompts": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 348,
+      "overriden_lines": 13
+    }
+  },
+  "sessions": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "stats": {
+        "total_additions": 0,
+        "total_deletions": 0,
+        "accepted_lines": 348,
+        "overriden_lines": 13,
+        "files": {
+          "ARCHITECTURE.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "README.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 14,
+            "overriden_lines": 0
+          },
+          "docs/DEMO_SCRIPT.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 76,
+            "overriden_lines": 0
+          },
+          "prisma/schema.prisma": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 136,
+            "overriden_lines": 13
+          }
+        }
+      }
+    }
+  }
+}
