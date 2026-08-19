@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, Pencil, Trash2, Power, Shield, Zap, Lock } from "lucide-react";
+import { Plus, Search, Filter, Pencil, Trash2, Shield, Zap, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";

@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
+import { requireAuth } from './middleware/auth';
 
 const router = Router();
 
 // GET all templates
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const { data: templates, error } = await supabase
       .from('Template')
@@ -22,7 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST create template
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const { name, description, type, content } = req.body;
 

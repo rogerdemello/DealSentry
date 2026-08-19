@@ -32,7 +32,6 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { RiskBar } from "@/components/ui/RiskBar";
 import { getApiBaseUrl } from "@/lib/api-client";
 import { useProposals } from "@/context/useProposals";
-import { Finding, Recommendation } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatIST } from "@/lib/utils";
 import { useState } from "react";

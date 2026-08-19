@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabase } from '../lib/supabase';
-import { requireAuth, resolveSessionUser } from './middleware/auth';
+import { resolveSessionUser } from './middleware/auth';
 import { logger } from './lib/logger';
 
 const router = Router();
@@ -44,7 +44,11 @@ router.get('/salesforce/authorize', requireAuthFromQuery, async (req: Request, r
         .select('*')
         .eq('type', 'SALESFORCE')
         .eq('userId', userId)
-        .single();
+        // Tolerate duplicate rows from before this upsert existed: .single()
+        // errors on >1 rows, which made every reconnect insert another copy.
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       const credentials = { demo: true, accessToken: 'demo_token' };
 
@@ -145,7 +149,9 @@ router.get('/salesforce/callback', async (req: Request, res: Response) => {
           .select('id')
           .eq('type', 'SALESFORCE')
           .eq('userId', userId)
-          .single();
+          .order('createdAt', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
         if (existing) {
           await supabase
@@ -198,7 +204,11 @@ router.get('/hubspot/authorize', requireAuthFromQuery, async (req: Request, res:
         .select('*')
         .eq('type', 'HUBSPOT')
         .eq('userId', userId)
-        .single();
+        // Tolerate duplicate rows from before this upsert existed: .single()
+        // errors on >1 rows, which made every reconnect insert another copy.
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       const credentials = { demo: true, accessToken: 'demo_token' };
 
@@ -242,7 +252,11 @@ router.get('/hubspot/authorize', requireAuthFromQuery, async (req: Request, res:
         .select('*')
         .eq('type', 'HUBSPOT')
         .eq('userId', userId)
-        .single();
+        // Tolerate duplicate rows from before this upsert existed: .single()
+        // errors on >1 rows, which made every reconnect insert another copy.
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (existing) {
         await supabase
@@ -340,12 +354,14 @@ router.get('/hubspot/callback', async (req: Request, res: Response) => {
           .select('*')
           .eq('type', 'HUBSPOT')
           .eq('userId', userId)
-          .single();
+          .order('createdAt', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
         if (existing) {
           logger.debug('Updating existing HubSpot integration:', existing.id);
           
-          const { data: updated, error: updateError } = await supabase
+          const { error: updateError } = await supabase
             .from('Integration')
             .update({
               credentials,
@@ -405,7 +421,11 @@ router.get('/gmail/authorize', requireAuthFromQuery, async (req: Request, res: R
         .select('*')
         .eq('type', 'GMAIL')
         .eq('userId', userId)
-        .single();
+        // Tolerate duplicate rows from before this upsert existed: .single()
+        // errors on >1 rows, which made every reconnect insert another copy.
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       const credentials = { demo: true, accessToken: 'demo_token' };
 
@@ -492,7 +512,9 @@ router.get('/gmail/callback', async (req: Request, res: Response) => {
           .select('*')
           .eq('type', 'GMAIL')
           .eq('userId', userId)
-          .single();
+          .order('createdAt', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
         const prevCreds = (existing?.credentials || {}) as Record<string, unknown>;
         const credentials = {

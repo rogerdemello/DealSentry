@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
 export function cn(...inputs: ClassValue[]) {
@@ -65,7 +65,7 @@ export function markdownToHtml(text: string): string {
   html = html.replace(/__(.+?)__/g, '<u>$1</u>');
   
   // Convert bullet points
-  html = html.replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/^[•*-] (.+)$/gm, '<li>$1</li>');
   
   // Convert line breaks to <br>
   html = html.replace(/\n/g, '<br>');

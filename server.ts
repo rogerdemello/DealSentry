@@ -107,7 +107,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+// The unused 4th parameter is required: Express only treats 4-arg middleware as an error handler.
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('API Error:', err);
   res.status(500).json({ error: err.message || 'Internal server error' });
 });

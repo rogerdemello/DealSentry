@@ -49,8 +49,19 @@ Typical development time was about 2 to 4 focused hours per day during active im
 ```bash
 npm install
 npx prisma generate
-npx prisma migrate deploy
+npx prisma db push          # sync the schema (this repo has no migration files)
 npm run seed
+```
+
+Then apply the one-time manual SQL (idempotent, safe to re-run):
+
+```bash
+# pgvector + semantic search function (required for proposal search)
+npx prisma db execute --file prisma/manual/semantic_search.sql
+npm run backfill:embeddings
+
+# Storage bucket + policies (required for document upload)
+npx prisma db execute --file prisma/manual/storage_bucket.sql
 ```
 
 ### Run
@@ -63,6 +74,8 @@ On Windows, you can also use `start.bat` to launch the backend and frontend toge
 
 ## Documentation
 
+- [ARCHITECTURE.md](ARCHITECTURE.md) — system design and trade-offs
+- [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) — rehearsed demo storyline
 - [SETUP.md](SETUP.md)
 - [COMPLIANCE_RULES.md](COMPLIANCE_RULES.md)
 - [docs/SERVER_STABILITY.md](docs/SERVER_STABILITY.md)

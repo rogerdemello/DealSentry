@@ -11,6 +11,11 @@ create extension if not exists vector;
 -- 2. Embedding column on Proposal (text-embedding-ada-002 => 1536 dims)
 alter table "Proposal" add column if not exists embedding vector(1536);
 
+-- 2b. Tenant column referenced by match_proposals below. The API writes it
+--     conditionally (only for users with a companyId), so it must exist even
+--     on databases that predate company scoping.
+alter table "Proposal" add column if not exists company_id text;
+
 -- 3. Approximate-nearest-neighbour index (cosine distance).
 --    Tune `lists` upward as the table grows (≈ rows/1000).
 create index if not exists proposal_embedding_idx

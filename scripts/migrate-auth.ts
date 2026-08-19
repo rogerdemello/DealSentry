@@ -74,7 +74,7 @@ async function runMigration() {
       const defaultPassword = 'Admin@123';
       const hashedPassword = await bcrypt.hash(defaultPassword, SALT_ROUNDS);
 
-      const { data: newAdmin, error: createError } = await supabase
+      const { error: createError } = await supabase
         .from('User')
         .insert({
           id: crypto.randomUUID(),
