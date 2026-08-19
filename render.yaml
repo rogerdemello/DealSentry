@@ -30,6 +30,9 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
+      # Optional: preferred over the anon key when set (survives enabling RLS).
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
       - key: AZURE_OPENAI_ENDPOINT
         sync: false
       - key: OPENAI_API_KEY
