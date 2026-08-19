@@ -1,0 +1,202 @@
+render.yaml
+  s_69f97138746280::t_40faa918388f19 33-35
+src/api/templates.ts
+  s_69f97138746280::t_fc277768f21fe3 26
+  s_69f97138746280::t_2098c83ff34fc1 3,8
+src/api/users.ts
+  s_69f97138746280::t_2f875637d4f9a6 1-145
+.env.example
+  s_69f97138746280::t_d19c0f96f430ba 18-21
+tests/users.test.ts
+  s_69f97138746280::t_40420ac3afc68d 1-109
+src/lib/supabase.ts
+  s_69f97138746280::t_5e45f627207a88 1-30
+src/api/files.ts
+  s_69f97138746280::t_7bd0995185d5f0 4,9
+  s_69f97138746280::t_b55f39f4052058 120
+  s_69f97138746280::t_80ff426eb0b928 11
+  s_69f97138746280::t_efa2d9d826abb0 76
+  s_69f97138746280::t_665c43077b9447 101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "86a3fec9aa8f74577aa25c172283b0f45de1b991",
+  "branch": "fix/workflow-bugs",
+  "prompts": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1834,
+      "overriden_lines": 1
+    }
+  },
+  "sessions": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "stats": {
+        "total_additions": 0,
+        "total_deletions": 0,
+        "accepted_lines": 1834,
+        "overriden_lines": 1,
+        "files": {
+          ".env.example": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 4,
+            "overriden_lines": 0
+          },
+          "ARCHITECTURE.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "README.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 14,
+            "overriden_lines": 0
+          },
+          "docs/DEMO_SCRIPT.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 76,
+            "overriden_lines": 0
+          },
+          "eslint.config.mjs": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 54,
+            "overriden_lines": 0
+          },
+          "package.json": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "prisma/schema.prisma": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 155,
+            "overriden_lines": 0
+          },
+          "render.yaml": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 62,
+            "overriden_lines": 1
+          },
+          "scripts/migrate-auth.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "server.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/api/files.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 6,
+            "overriden_lines": 0
+          },
+          "src/api/templates.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 3,
+            "overriden_lines": 0
+          },
+          "src/api/users.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 145,
+            "overriden_lines": 0
+          },
+          "src/components/proposals/ProposalCard.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 3,
+            "overriden_lines": 0
+          },
+          "src/context/ProposalProvider.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 11,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-api-connection.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 7,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-toast.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/lib/api-client.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "src/lib/supabase.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 30,
+            "overriden_lines": 0
+          },
+          "src/lib/utils.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/pages/Compliance.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 544,
+            "overriden_lines": 0
+          },
+          "src/pages/UploadProposal.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 358,
+            "overriden_lines": 0
+          },
+          "tests/users.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 109,
+            "overriden_lines": 0
+          },
+          "vite.config.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          }
+        }
+      }
+    }
+  }
+}
