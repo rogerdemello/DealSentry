@@ -1,0 +1,181 @@
+src/pages/Compliance.tsx
+  s_69f97138746280::t_e5fef29497b7a4 3
+server.ts
+  s_69f97138746280::t_7d90fde6ab9871 110-111
+src/components/proposals/ProposalCard.tsx
+  s_69f97138746280::t_8efe74665cbe72 32
+  s_69f97138746280::t_812a953b3237c4 57
+  s_69f97138746280::t_baf92a13791692 2
+eslint.config.mjs
+  s_69f97138746280::t_877dca12ea5773 46-53
+src/pages/UploadProposal.tsx
+  s_69f97138746280::t_7ab92dd03f4be8 4
+  s_69f97138746280::t_5e81c96501c905 42
+vite.config.ts
+  s_69f97138746280::t_44a426055d04b3 6
+package.json
+  s_69f97138746280::t_7dea79d8f8af4e 13
+scripts/migrate-auth.ts
+  s_69f97138746280::t_b27d199632ffd4 77
+src/lib/api-client.ts
+  s_69f97138746280::t_88f8eb9c34d496 126
+src/hooks/use-toast.ts
+  s_69f97138746280::t_23b5fd10797466 15
+  s_69f97138746280::t_126172f90f510a 29
+src/hooks/use-api-connection.ts
+  s_69f97138746280::t_fab79f35af71cb 1
+  s_69f97138746280::t_08cee4a46db2ce 108
+  s_69f97138746280::t_12cf96e70333bd 30-32
+  s_69f97138746280::t_9d3170f7aec4c6 74
+  s_69f97138746280::t_8456c6710fdeed 98
+src/lib/utils.ts
+  s_69f97138746280::t_8b590d615f9d20 3
+  s_69f97138746280::t_d9e00d27d9831e 68
+src/context/ProposalProvider.tsx
+  s_69f97138746280::t_d62430ea1f05ed 54
+  s_69f97138746280::t_9917a3559d9e97 226-228
+  s_69f97138746280::t_6ccd9f5eb42792 1
+  s_69f97138746280::t_00daca9cd958b5 17-19
+  s_69f97138746280::t_477ca0b2a0f573 73
+  s_69f97138746280::t_92f7698ad082f9 39-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "39df2c94aee0dfc88a9b4caedfd82327907538da",
+  "branch": "fix/workflow-bugs",
+  "prompts": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1277,
+      "overriden_lines": 3
+    }
+  },
+  "sessions": {
+    "s_69f97138746280": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e177fff-81c7-4db2-bb42-4d87dba0c87b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Roger Demello <claude@sozolabs.in>",
+      "stats": {
+        "total_additions": 0,
+        "total_deletions": 0,
+        "accepted_lines": 1277,
+        "overriden_lines": 3,
+        "files": {
+          "ARCHITECTURE.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "README.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 14,
+            "overriden_lines": 0
+          },
+          "docs/DEMO_SCRIPT.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 76,
+            "overriden_lines": 0
+          },
+          "eslint.config.mjs": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 53,
+            "overriden_lines": 0
+          },
+          "package.json": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 122,
+            "overriden_lines": 0
+          },
+          "prisma/schema.prisma": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 155,
+            "overriden_lines": 0
+          },
+          "scripts/migrate-auth.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "server.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/components/proposals/ProposalCard.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 3,
+            "overriden_lines": 0
+          },
+          "src/context/ProposalProvider.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 11,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-api-connection.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 7,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-toast.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/lib/api-client.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "src/lib/utils.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/pages/Compliance.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 513,
+            "overriden_lines": 0
+          },
+          "src/pages/UploadProposal.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 192,
+            "overriden_lines": 3
+          },
+          "vite.config.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          }
+        }
+      }
+    }
+  }
+}
