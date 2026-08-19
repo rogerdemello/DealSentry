@@ -54,6 +54,12 @@ model Proposal {
   renewalDate        DateTime?
   autoRenew          Boolean  @default(false)
 
+  // Tenant scoping column used by the API's company checks. Nullable: rows
+  // created in single-tenant/demo mode have no company. Added by
+  // prisma/manual/semantic_search.sql on databases that predate it — kept here
+  // so `prisma db push` doesn't try to drop it.
+  companyId      String?     @map("company_id")
+
   // Semantic search embedding (pgvector). Added via prisma/manual/semantic_search.sql;
   // populated best-effort on create and by scripts/backfill-embeddings.ts.
   embedding      Unsupported("vector(1536)")?
