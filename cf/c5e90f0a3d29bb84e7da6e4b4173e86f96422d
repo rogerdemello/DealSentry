@@ -1,0 +1,76 @@
+.env.example
+  s_4c3d211c162884::t_b9250decffe68f 29-32
+src/api/lib/llm.ts
+  s_4c3d211c162884::t_302475c62ef7d0 1-21,28-30
+  s_4c3d211c162884::t_7469331ce33a5e 22-27
+src/api/proposals.ts
+  s_4c3d211c162884::t_e75e28bd6a14a2 10
+  s_4c3d211c162884::t_845388b1f29d0b 309
+src/api/analyze.ts
+  s_4c3d211c162884::t_ff325b34c7748c 5
+  s_4c3d211c162884::t_7c117451063537 126,128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "cfc5e90f0a3d29bb84e7da6e4b4173e86f96422d",
+  "branch": "fix/workflow-bugs",
+  "prompts": {
+    "s_4c3d211c162884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7eacad8e-3596-42aa-a6de-94d426d0a2e1",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "rogerdemello <rogerdemello289@gmail.com>",
+      "messages_url": "cas:554c749f11b42731794ddfcf3da3557ddd0cdb65e7c76fe49d66af936fd5c189",
+      "total_additions": 41,
+      "total_deletions": 23,
+      "accepted_lines": 256,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_4c3d211c162884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7eacad8e-3596-42aa-a6de-94d426d0a2e1",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "rogerdemello <rogerdemello289@gmail.com>",
+      "messages_url": "cas:554c749f11b42731794ddfcf3da3557ddd0cdb65e7c76fe49d66af936fd5c189",
+      "stats": {
+        "total_additions": 41,
+        "total_deletions": 23,
+        "accepted_lines": 256,
+        "overriden_lines": 0,
+        "files": {
+          ".env.example": {
+            "total_additions": 4,
+            "total_deletions": 0,
+            "accepted_lines": 4,
+            "overriden_lines": 0
+          },
+          "src/api/analyze.ts": {
+            "total_additions": 4,
+            "total_deletions": 12,
+            "accepted_lines": 220,
+            "overriden_lines": 0
+          },
+          "src/api/lib/llm.ts": {
+            "total_additions": 30,
+            "total_deletions": 0,
+            "accepted_lines": 30,
+            "overriden_lines": 0
+          },
+          "src/api/proposals.ts": {
+            "total_additions": 3,
+            "total_deletions": 11,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          }
+        }
+      }
+    }
+  }
+}
