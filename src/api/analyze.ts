@@ -1,19 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { AzureOpenAI } from 'openai';
 import { supabase } from '../lib/supabase';
 import { requireAuth, canAccessCompany } from './middleware/auth';
 import { normalizeAnalysis, shouldAutoReview } from './lib/compliance';
+import { llmClient as client, llmModel as deployment, llmExtraParams } from './lib/llm';
 
 const router = Router();
-
-// Initialize Azure OpenAI client
-const client = new AzureOpenAI({
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  apiKey: process.env.OPENAI_API_KEY,
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-12-01-preview',
-});
-
-const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
 // Analyze a proposal (admin or same company only)
 router.post('/:proposalId', requireAuth, async (req: Request, res: Response) => {
@@ -132,8 +123,9 @@ Respond in JSON format:
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 4000,
       response_format: { type: 'json_object' },
+      ...llmExtraParams,
     });
 
     const responseContent = completion.choices[0]?.message?.content;

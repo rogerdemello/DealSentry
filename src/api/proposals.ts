@@ -7,18 +7,9 @@ import { markdownToHtml } from './lib/compliance';
 import { sendEmail } from './lib/email';
 import { buildStatusChangeEmail } from './lib/emailTemplates';
 import { generateEmbedding } from './lib/embeddings';
-import { AzureOpenAI } from 'openai';
+import { llmClient as client, llmModel as deployment, llmExtraParams } from './lib/llm';
 
 const router = Router();
-
-// Initialize Azure OpenAI client
-const client = new AzureOpenAI({
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  apiKey: process.env.OPENAI_API_KEY,
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-12-01-preview',
-});
-
-const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o';
 
 /**
  * Best-effort: compute and store a content embedding for semantic search.
@@ -315,6 +306,7 @@ Respond in JSON format:
       temperature: 0.7,
       max_tokens: 4000,
       response_format: { type: 'json_object' },
+      ...llmExtraParams,
     });
 
     const responseContent = completion.choices[0]?.message?.content;
