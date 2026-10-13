@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from './middleware/auth';
+import { logger } from './lib/logger';
 import { getScopedAuditLogs } from './lib/auditQuery';
 
 const router = Router();
@@ -19,7 +20,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     res.json({ items, unreadCount });
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    logger.error('Error fetching notifications:', error);
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
