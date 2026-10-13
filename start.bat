@@ -54,8 +54,8 @@ echo Backend API: http://localhost:3001
 echo Frontend App: http://localhost:8080
 echo.
 echo Login Credentials:
-echo   Admin: admin@dealsentry.ai / demo
-echo   Test Users: test1@dealsentry.ai through test5@dealsentry.ai / demo
+echo   No sign-in in the default demo mode (acts as the seeded admin, admin@dealsentry.ai).
+echo   For email + password accounts set AUTH_MODE=login - see docs/AUTH_QUICKSTART.md
 echo.
 echo ========================================
 echo.
