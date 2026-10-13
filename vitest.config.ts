@@ -1,12 +1,12 @@
 import { defineConfig } from 'vitest/config';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
 
 // Vitest config kept separate from vite.config.ts so the app build and the
 // test runner stay decoupled. API/business-logic tests run in a Node env.
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   test: {
