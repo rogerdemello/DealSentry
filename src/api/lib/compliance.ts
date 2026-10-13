@@ -48,20 +48,28 @@ export interface NormalizedAnalysis {
   recommendations: unknown[];
 }
 
+/** A 0-100 score from a possibly-garbled value; `fallback` when it isn't a number. */
+function toScore(value: unknown, fallback: number): number {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (typeof n !== 'number' || !Number.isFinite(n)) return fallback;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
 /**
  * Apply safe defaults to a raw AI analysis object so a partial/garbled LLM
- * response never persists null/undefined scores. Mirrors the historical
- * `analysis.x || default` behaviour in one place.
+ * response never persists null/undefined scores. A real 0 is kept (a proposal
+ * can legitimately score 0 readiness or carry 0% risk); only missing,
+ * non-numeric values fall back to a default. Scores are clamped to 0-100.
  */
 export function normalizeAnalysis(raw: RawAnalysis | null | undefined): NormalizedAnalysis {
   const a = raw ?? {};
   return {
-    readinessScore: a.readinessScore || 50,
-    legalRisk: a.legalRisk || 20,
-    pricingRisk: a.pricingRisk || 20,
-    structuralRisk: a.structuralRisk || 20,
-    findings: a.findings || [],
-    recommendations: a.recommendations || [],
+    readinessScore: toScore(a.readinessScore, 50),
+    legalRisk: toScore(a.legalRisk, 20),
+    pricingRisk: toScore(a.pricingRisk, 20),
+    structuralRisk: toScore(a.structuralRisk, 20),
+    findings: Array.isArray(a.findings) ? a.findings : [],
+    recommendations: Array.isArray(a.recommendations) ? a.recommendations : [],
   };
 }
 
