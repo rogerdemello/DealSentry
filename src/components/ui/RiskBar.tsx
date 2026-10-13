@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { AlertTriangle, CheckCircle, AlertCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react";
 
 interface RiskBarProps {
   risk: number;
@@ -11,7 +11,7 @@ export function RiskBar({ risk, label, className }: RiskBarProps) {
   // Clamp risk to 0-100 range for display
   const displayRisk = Math.min(100, Math.max(0, risk));
   
-  const getRiskLevel = (risk: number): { label: string; color: string; bgColor: string; icon: any } => {
+  const getRiskLevel = (risk: number): { label: string; color: string; bgColor: string; icon: LucideIcon } => {
     if (risk <= 20) return { 
       label: "Low Risk", 
       color: "text-emerald-600", 

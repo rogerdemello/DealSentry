@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { supabase } from '../lib/supabase';
-import { resolveSessionUser } from './middleware/auth';
+import { loadUserById, requireAuth, resolveSessionUser } from './middleware/auth';
+import { isLoginMode } from './lib/authConfig';
+import { upsertIntegration, type OAuthProvider } from './lib/integrationStore';
+import { signOAuthStart, signOAuthState, verifyOAuthStart, verifyOAuthState } from './lib/oauthState';
 import { logger } from './lib/logger';
 
 const router = Router();
@@ -8,293 +10,219 @@ const router = Router();
 // Frontend URL for OAuth redirects
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
+const redirectToIntegrations = (res: Response, query: string) =>
+  res.redirect(`${FRONTEND_URL}/integrations?${query}`);
+
+// The SPA calls this (with its normal Authorization header) just before it
+// navigates the browser to an /authorize endpoint, which cannot carry a header.
+// The token is good for two minutes and only for the /authorize redirects.
+router.post('/start-token', requireAuth, (req: Request, res: Response) => {
+  res.json({ token: signOAuthStart(req.user!.id) });
+});
+
 /**
- * Auth for OAuth redirects. These are top-level browser navigations, so no
- * Authorization header is available — the token (when there is one) rides in the
- * query string. With login removed there usually isn't one, and the request
- * falls back to the default user, same as every other route.
+ * Auth for the /authorize redirects (top-level browser navigations, so no header).
+ * The identity is a short-lived start token from POST /start-token. In demo mode —
+ * where there are no sessions — a request without one is served as the default
+ * user, as before. In login mode a start token is required.
  */
 const requireAuthFromQuery = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { user } = await resolveSessionUser(req.query.token as string | undefined);
+    const token = typeof req.query.token === 'string' ? req.query.token : undefined;
+
+    const startUserId = verifyOAuthStart(token);
+    let user = startUserId ? (await loadUserById(startUserId)).user : null;
+
+    if (!user && !isLoginMode()) {
+      user = (await resolveSessionUser(token)).user;
+    }
+
     if (!user) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
+      return redirectToIntegrations(res, 'error=unauthorized');
     }
     req.user = user;
     next();
   } catch (error) {
     logger.error('OAuth session lookup failed', error as Error);
-    return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
+    return redirectToIntegrations(res, 'error=unauthorized');
   }
 };
 
-// Salesforce OAuth flow
+/** Store (or refresh) the connection, or redirect with an error. Returns true on success. */
+async function saveConnection(
+  res: Response,
+  opts: Parameters<typeof upsertIntegration>[0]
+): Promise<boolean> {
+  try {
+    await upsertIntegration(opts);
+    return true;
+  } catch (err) {
+    logger.error(`Failed to save ${opts.type} integration:`, err);
+    redirectToIntegrations(res, 'error=integration_save_failed');
+    return false;
+  }
+}
+
+const DEMO_CREDENTIALS = { demo: true, accessToken: 'demo_token' };
+
+/** Demo-mode connect: store `{demo: true}` credentials and return to the SPA. */
+async function connectDemo(res: Response, userId: string, type: OAuthProvider, name: string, param: string) {
+  const saved = await saveConnection(res, {
+    userId,
+    type,
+    name,
+    credentials: () => DEMO_CREDENTIALS,
+    resetName: true,
+  });
+  if (saved) redirectToIntegrations(res, `${param}=demo&success=true`);
+}
+
+/** The fields of an OAuth token response this app uses. */
+interface TokenResponse {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  instance_url?: string;
+}
+
+/** POST to a provider's token endpoint with the authorization code. */
+async function exchangeCode(
+  tokenUrl: string,
+  params: Record<string, string>,
+  provider: string
+): Promise<TokenResponse | null> {
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params),
+    signal: AbortSignal.timeout(20_000),
+  });
+
+  if (!response.ok) {
+    logger.error(`${provider} token exchange failed:`, response.status, await response.text());
+    return null;
+  }
+  return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce
+// ---------------------------------------------------------------------------
+
+const salesforceBase = () =>
+  process.env.SALESFORCE_SANDBOX === 'true' ? 'https://test.salesforce.com' : 'https://login.salesforce.com';
+const salesforceRedirectUri = () =>
+  process.env.SALESFORCE_REDIRECT_URI || 'http://localhost:3001/api/oauth/salesforce/callback';
+
 router.get('/salesforce/authorize', requireAuthFromQuery, async (req: Request, res: Response) => {
-  const isDemoMode = process.env.SALESFORCE_DEMO_MODE === 'true';
   const userId = req.user?.id;
-
   if (!userId) {
-    return res.redirect(`${FRONTEND_URL}/integrations?error=not_authenticated`);
-  }
-  
-  if (isDemoMode) {
-    try {
-      const { data: existing } = await supabase
-        .from('Integration')
-        .select('*')
-        .eq('type', 'SALESFORCE')
-        .eq('userId', userId)
-        // Tolerate duplicate rows from before this upsert existed: .single()
-        // errors on >1 rows, which made every reconnect insert another copy.
-        .order('createdAt', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const credentials = { demo: true, accessToken: 'demo_token' };
-
-      if (existing) {
-        await supabase
-          .from('Integration')
-          .update({ 
-            name: 'Salesforce',
-            credentials, 
-            isActive: true, 
-            updatedAt: new Date().toISOString() 
-          })
-          .eq('id', existing.id);
-      } else {
-        await supabase.from('Integration').insert({
-          id: (crypto as any).randomUUID(),
-          type: 'SALESFORCE',
-          name: 'Salesforce',
-          credentials,
-          config: {},
-          isActive: true,
-          userId: userId,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      console.error('Failed to create Salesforce demo integration:', err);
-    }
-
-    res.redirect(`${FRONTEND_URL}/integrations?salesforce=demo&success=true`);
-    return;
+    return redirectToIntegrations(res, 'error=not_authenticated');
   }
 
-  const clientId = process.env.SALESFORCE_CLIENT_ID;
-  const redirectUri = process.env.SALESFORCE_REDIRECT_URI || 'http://localhost:3001/api/oauth/salesforce/callback';
-  const isSandbox = process.env.SALESFORCE_SANDBOX === 'true';
-  
-  const state = userId; // Use userId as state to identify the user on callback
-  const baseUrl = isSandbox ? 'https://test.salesforce.com' : 'https://login.salesforce.com';
-  let authUrl = `${baseUrl}/services/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=api%20refresh_token`;
-  if (state) authUrl += `&state=${encodeURIComponent(state)}`;
+  if (process.env.SALESFORCE_DEMO_MODE === 'true') {
+    return connectDemo(res, userId, 'SALESFORCE', 'Salesforce', 'salesforce');
+  }
+
+  const authUrl =
+    `${salesforceBase()}/services/oauth2/authorize?response_type=code` +
+    `&client_id=${encodeURIComponent(process.env.SALESFORCE_CLIENT_ID ?? '')}` +
+    `&redirect_uri=${encodeURIComponent(salesforceRedirectUri())}` +
+    `&scope=api%20refresh_token&state=${encodeURIComponent(signOAuthState(userId))}`;
   res.redirect(authUrl);
 });
 
 router.get('/salesforce/callback', async (req: Request, res: Response) => {
   try {
     const { code, state } = req.query;
-    
+
     if (!code) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=no_code`);
+      return redirectToIntegrations(res, 'error=no_code');
     }
-
-    const userId = state as string; // userId passed from authorize
+    const userId = verifyOAuthState(state);
     if (!userId) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=not_authenticated`);
+      return redirectToIntegrations(res, 'error=invalid_state');
     }
 
-    // Exchange code for token
-    const clientId = process.env.SALESFORCE_CLIENT_ID;
-    const clientSecret = process.env.SALESFORCE_CLIENT_SECRET;
-    const redirectUri = process.env.SALESFORCE_REDIRECT_URI || 'http://localhost:3001/api/oauth/salesforce/callback';
-    const isSandbox = process.env.SALESFORCE_SANDBOX === 'true';
-    
-    const baseUrl = isSandbox ? 'https://test.salesforce.com' : 'https://login.salesforce.com';
-    const tokenUrl = `${baseUrl}/services/oauth2/token`;
-    
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
+    const data = await exchangeCode(
+      `${salesforceBase()}/services/oauth2/token`,
+      {
         grant_type: 'authorization_code',
         code: code as string,
-        client_id: clientId!,
-        client_secret: clientSecret!,
-        redirect_uri: redirectUri,
+        client_id: process.env.SALESFORCE_CLIENT_ID ?? '',
+        client_secret: process.env.SALESFORCE_CLIENT_SECRET ?? '',
+        redirect_uri: salesforceRedirectUri(),
+      },
+      'Salesforce'
+    );
+
+    if (!data?.access_token) {
+      return redirectToIntegrations(res, 'error=token_exchange_failed');
+    }
+
+    const saved = await saveConnection(res, {
+      userId,
+      type: 'SALESFORCE',
+      name: 'Salesforce',
+      credentials: () => ({
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in,
+        instanceUrl: data.instance_url,
       }),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Salesforce token exchange failed:', errorText);
-      return res.redirect(`${FRONTEND_URL}/integrations?error=token_exchange_failed`);
-    }
-
-    const data = await response.json();
-
-    if (data.access_token) {
-      try {
-        const credentials = {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          expiresIn: data.expires_in,
-          instanceUrl: data.instance_url,
-        };
-
-        const { data: existing } = await supabase
-          .from('Integration')
-          .select('id')
-          .eq('type', 'SALESFORCE')
-          .eq('userId', userId)
-          .order('createdAt', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from('Integration')
-            .update({
-              credentials,
-              isActive: true,
-              updatedAt: new Date().toISOString(),
-            })
-            .eq('id', existing.id);
-        } else {
-          await supabase.from('Integration').insert({
-            id: (crypto as any).randomUUID(),
-            type: 'SALESFORCE',
-            name: 'Salesforce',
-            credentials,
-            config: {},
-            isActive: true,
-            userId: userId,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      } catch (err) {
-        console.error('Failed to upsert Salesforce integration:', err);
-      }
-
-      res.redirect(`${FRONTEND_URL}/integrations?salesforce=connected&success=true`);
-    } else {
-      res.redirect(`${FRONTEND_URL}/integrations?error=token_exchange_failed`);
-    }
+    if (saved) redirectToIntegrations(res, 'salesforce=connected&success=true');
   } catch (error) {
-    console.error('Salesforce OAuth error:', error);
-    res.redirect(`${FRONTEND_URL}/integrations?error=oauth_failed`);
+    logger.error('Salesforce OAuth error:', error);
+    redirectToIntegrations(res, 'error=oauth_failed');
   }
 });
 
-// HubSpot OAuth flow
+// ---------------------------------------------------------------------------
+// HubSpot
+// ---------------------------------------------------------------------------
+
+const hubspotRedirectUri = () =>
+  process.env.HUBSPOT_REDIRECT_URI || 'http://localhost:3001/api/oauth/hubspot/callback';
+
 router.get('/hubspot/authorize', requireAuthFromQuery, async (req: Request, res: Response) => {
-  const isDemoMode = process.env.HUBSPOT_DEMO_MODE === 'true';
   const userId = req.user?.id;
-
   if (!userId) {
-    return res.redirect(`${FRONTEND_URL}/integrations?error=not_authenticated`);
-  }
-  
-  if (isDemoMode) {
-    try {
-      const { data: existing } = await supabase
-        .from('Integration')
-        .select('*')
-        .eq('type', 'HUBSPOT')
-        .eq('userId', userId)
-        // Tolerate duplicate rows from before this upsert existed: .single()
-        // errors on >1 rows, which made every reconnect insert another copy.
-        .order('createdAt', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const credentials = { demo: true, accessToken: 'demo_token' };
-
-      if (existing) {
-        await supabase
-          .from('Integration')
-          .update({ 
-            name: 'HubSpot',
-            credentials, 
-            isActive: true, 
-            updatedAt: new Date().toISOString() 
-          })
-          .eq('id', existing.id);
-      } else {
-        await supabase.from('Integration').insert({
-          id: (crypto as any).randomUUID(),
-          type: 'HUBSPOT',
-          name: 'HubSpot',
-          credentials,
-          config: {},
-          isActive: true,
-          userId: userId,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      console.error('Failed to create HubSpot demo integration:', err);
-    }
-
-    res.redirect(`${FRONTEND_URL}/integrations?hubspot=demo&success=true`);
-    return;
+    return redirectToIntegrations(res, 'error=not_authenticated');
   }
 
-  // Check if using Private App (access token) instead of OAuth
-  const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
-  if (accessToken) {
-    try {
-      // Upsert Integration record into Supabase
-      const { data: existing } = await supabase
-        .from('Integration')
-        .select('*')
-        .eq('type', 'HUBSPOT')
-        .eq('userId', userId)
-        // Tolerate duplicate rows from before this upsert existed: .single()
-        // errors on >1 rows, which made every reconnect insert another copy.
-        .order('createdAt', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  if (process.env.HUBSPOT_DEMO_MODE === 'true') {
+    return connectDemo(res, userId, 'HUBSPOT', 'HubSpot', 'hubspot');
+  }
 
-      if (existing) {
-        await supabase
-          .from('Integration')
-          .update({ credentials: { accessToken }, isActive: true, updatedAt: new Date().toISOString() })
-          .eq('id', existing.id);
-      } else {
-        await supabase.from('Integration').insert({
-          id: (crypto as any).randomUUID(),
-          type: 'HUBSPOT',
-          name: 'HubSpot',
-          credentials: { accessToken },
-          config: {},
-          isActive: true,
-          userId: userId,
-        });
-      }
-    } catch (err) {
-      console.error('Failed to upsert HubSpot integration:', err);
+  // Private App: one server-wide access token instead of per-user OAuth. In
+  // login mode that token is shared company access, so only admins may attach it.
+  const privateAppToken = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (privateAppToken) {
+    if (isLoginMode() && req.user?.role !== 'ADMIN') {
+      return redirectToIntegrations(res, 'error=forbidden');
     }
-
-    // Private App - directly mark as connected
-    res.redirect(`${FRONTEND_URL}/integrations?hubspot=connected&success=true&type=private`);
+    const saved = await saveConnection(res, {
+      userId,
+      type: 'HUBSPOT',
+      name: 'HubSpot',
+      credentials: () => ({ accessToken: privateAppToken }),
+    });
+    if (saved) redirectToIntegrations(res, 'hubspot=connected&success=true&type=private');
     return;
   }
 
   // OAuth flow for Public Apps
   const clientId = process.env.HUBSPOT_CLIENT_ID;
   if (!clientId) {
-    res.redirect(`${FRONTEND_URL}/integrations?error=no_client_id`);
-    return;
+    return redirectToIntegrations(res, 'error=no_client_id');
   }
 
-  const redirectUri = process.env.HUBSPOT_REDIRECT_URI || 'http://localhost:3001/api/oauth/hubspot/callback';
-  const state = userId; // Use userId as state
   const scopes = 'crm.objects.contacts.read crm.objects.deals.read';
-  let authUrl = `https://app.hubspot.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
-  if (state) authUrl += `&state=${encodeURIComponent(state)}`;
+  const authUrl =
+    `https://app.hubspot.com/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
+    `&redirect_uri=${encodeURIComponent(hubspotRedirectUri())}` +
+    `&scope=${encodeURIComponent(scopes)}&state=${encodeURIComponent(signOAuthState(userId))}`;
   res.redirect(authUrl);
 });
 
@@ -303,258 +231,119 @@ router.get('/hubspot/callback', async (req: Request, res: Response) => {
     const { code, error: hubspotError, state } = req.query;
 
     if (hubspotError) {
-      console.error('HubSpot OAuth denied or error:', hubspotError);
-      return res.redirect(`${FRONTEND_URL}/integrations?error=${encodeURIComponent(String(hubspotError))}`);
+      logger.error('HubSpot OAuth denied or error:', hubspotError);
+      return redirectToIntegrations(res, `error=${encodeURIComponent(String(hubspotError))}`);
     }
-
     if (!code) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=no_code`);
+      return redirectToIntegrations(res, 'error=no_code');
+    }
+    const userId = verifyOAuthState(state);
+    if (!userId) {
+      return redirectToIntegrations(res, 'error=invalid_state');
     }
 
-    const userId = state as string;
-    if (!userId) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=not_authenticated`);
-    }
-    const clientId = process.env.HUBSPOT_CLIENT_ID;
-    const clientSecret = process.env.HUBSPOT_CLIENT_SECRET;
-    const redirectUri = process.env.HUBSPOT_REDIRECT_URI || 'http://localhost:3001/api/oauth/hubspot/callback';
-    
-    const tokenUrl = 'https://api.hubapi.com/oauth/v1/token';
-    
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
+    const data = await exchangeCode(
+      'https://api.hubapi.com/oauth/v1/token',
+      {
         grant_type: 'authorization_code',
         code: code as string,
-        client_id: clientId!,
-        client_secret: clientSecret!,
-        redirect_uri: redirectUri,
+        client_id: process.env.HUBSPOT_CLIENT_ID ?? '',
+        client_secret: process.env.HUBSPOT_CLIENT_SECRET ?? '',
+        redirect_uri: hubspotRedirectUri(),
+      },
+      'HubSpot'
+    );
+
+    if (!data?.access_token) {
+      return redirectToIntegrations(res, 'error=token_exchange_failed');
+    }
+
+    const saved = await saveConnection(res, {
+      userId,
+      type: 'HUBSPOT',
+      name: 'HubSpot',
+      credentials: () => ({
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresIn: data.expires_in,
       }),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('HubSpot token exchange failed:', errorText);
-      return res.redirect(`${FRONTEND_URL}/integrations?error=token_exchange_failed`);
-    }
-
-    const data = await response.json();
-
-    if (data.access_token) {
-      try {
-        const credentials = {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          expiresIn: data.expires_in,
-        };
-
-        const { data: existing } = await supabase
-          .from('Integration')
-          .select('*')
-          .eq('type', 'HUBSPOT')
-          .eq('userId', userId)
-          .order('createdAt', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (existing) {
-          logger.debug('Updating existing HubSpot integration:', existing.id);
-          
-          const { error: updateError } = await supabase
-            .from('Integration')
-            .update({
-              credentials,
-              isActive: true,
-              updatedAt: new Date().toISOString(),
-            })
-            .eq('id', existing.id)
-            .select()
-            .single();
-          
-          if (updateError) throw updateError;
-          logger.debug('HubSpot integration updated successfully');
-        } else {
-          logger.debug('Creating new HubSpot integration for user:', userId);
-          
-          await supabase.from('Integration').insert({
-            id: (crypto as any).randomUUID(),
-            type: 'HUBSPOT',
-            name: 'HubSpot',
-            credentials,
-            config: {},
-            isActive: true,
-            userId: userId,
-            updatedAt: new Date().toISOString(),
-          });
-          
-          logger.debug('HubSpot integration created successfully');
-        }
-      } catch (err) {
-        console.error('Failed to upsert HubSpot integration:', err);
-        return res.redirect(`${FRONTEND_URL}/integrations?error=hubspot_save_failed`);
-      }
-
-      res.redirect(`${FRONTEND_URL}/integrations?hubspot=connected&success=true`);
-    } else {
-      res.redirect(`${FRONTEND_URL}/integrations?error=token_exchange_failed`);
-    }
+    if (saved) redirectToIntegrations(res, 'hubspot=connected&success=true');
   } catch (error) {
-    console.error('HubSpot OAuth error:', error);
-    res.redirect(`${FRONTEND_URL}/integrations?error=oauth_failed`);
+    logger.error('HubSpot OAuth error:', error);
+    redirectToIntegrations(res, 'error=oauth_failed');
   }
 });
 
-// Gmail OAuth flow
+// ---------------------------------------------------------------------------
+// Gmail
+// ---------------------------------------------------------------------------
+
+const gmailRedirectUri = () =>
+  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/oauth/gmail/callback';
+
 router.get('/gmail/authorize', requireAuthFromQuery, async (req: Request, res: Response) => {
   const userId = req.user?.id;
   if (!userId) {
-    return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
+    return redirectToIntegrations(res, 'error=unauthorized');
   }
 
-  const isDemoMode = process.env.GMAIL_DEMO_MODE === 'true';
-  
-  if (isDemoMode) {
-    try {
-      const { data: existing } = await supabase
-        .from('Integration')
-        .select('*')
-        .eq('type', 'GMAIL')
-        .eq('userId', userId)
-        // Tolerate duplicate rows from before this upsert existed: .single()
-        // errors on >1 rows, which made every reconnect insert another copy.
-        .order('createdAt', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const credentials = { demo: true, accessToken: 'demo_token' };
-
-      if (existing) {
-        await supabase
-          .from('Integration')
-          .update({ 
-            name: 'Gmail',
-            credentials, 
-            isActive: true, 
-            updatedAt: new Date().toISOString() 
-          })
-          .eq('id', existing.id);
-      } else {
-        await supabase.from('Integration').insert({
-          id: (crypto as any).randomUUID(),
-          type: 'GMAIL',
-          name: 'Gmail',
-          userId,
-          credentials,
-          config: {},
-          isActive: true,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      console.error('Failed to create Gmail demo integration:', err);
-    }
-
-    res.redirect(`${FRONTEND_URL}/integrations?gmail=demo&success=true`);
-    return;
+  if (process.env.GMAIL_DEMO_MODE === 'true') {
+    return connectDemo(res, userId, 'GMAIL', 'Gmail', 'gmail');
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/oauth/gmail/callback';
   const scopes = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly';
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${encodeURIComponent(userId)}`;
+  const authUrl =
+    `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(process.env.GOOGLE_CLIENT_ID ?? '')}` +
+    `&redirect_uri=${encodeURIComponent(gmailRedirectUri())}&response_type=code` +
+    `&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent` +
+    `&state=${encodeURIComponent(signOAuthState(userId))}`;
   res.redirect(authUrl);
 });
 
 router.get('/gmail/callback', async (req: Request, res: Response) => {
   try {
     const { code, state } = req.query;
-    const userId = state as string;
-    
+
     if (!code) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=no_code`);
+      return redirectToIntegrations(res, 'error=no_code');
     }
-
+    const userId = verifyOAuthState(state);
     if (!userId) {
-      return res.redirect(`${FRONTEND_URL}/integrations?error=unauthorized`);
+      return redirectToIntegrations(res, 'error=invalid_state');
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/oauth/gmail/callback';
-    
-    const tokenUrl = 'https://oauth2.googleapis.com/token';
-    
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
+    const data = await exchangeCode(
+      'https://oauth2.googleapis.com/token',
+      {
         grant_type: 'authorization_code',
         code: code as string,
-        client_id: clientId!,
-        client_secret: clientSecret!,
-        redirect_uri: redirectUri,
+        client_id: process.env.GOOGLE_CLIENT_ID ?? '',
+        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+        redirect_uri: gmailRedirectUri(),
+      },
+      'Gmail'
+    );
+
+    if (!data?.access_token) {
+      return redirectToIntegrations(res, 'error=token_exchange_failed');
+    }
+
+    const saved = await saveConnection(res, {
+      userId,
+      type: 'GMAIL',
+      name: 'Gmail',
+      // Google only sends a refresh token on first consent; keep the one we already have.
+      credentials: (existing) => ({
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token || existing.refreshToken || existing.refresh_token,
+        expiresIn: data.expires_in,
       }),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gmail token exchange failed:', errorText);
-      return res.redirect(`${FRONTEND_URL}/integrations?error=token_exchange_failed`);
-    }
-
-    const data = await response.json();
-
-    if (data.access_token) {
-      try {
-        const { data: existing } = await supabase
-          .from('Integration')
-          .select('*')
-          .eq('type', 'GMAIL')
-          .eq('userId', userId)
-          .order('createdAt', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const prevCreds = (existing?.credentials || {}) as Record<string, unknown>;
-        const credentials = {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token || prevCreds.refreshToken || prevCreds.refresh_token,
-          expiresIn: data.expires_in,
-        };
-
-        if (existing) {
-          await supabase
-            .from('Integration')
-            .update({ 
-              credentials, 
-              isActive: true, 
-              updatedAt: new Date().toISOString() 
-            })
-            .eq('id', existing.id);
-        } else {
-          await supabase.from('Integration').insert({
-            id: (crypto as any).randomUUID(),
-            type: 'GMAIL',
-            name: 'Gmail',
-            userId,
-            credentials,
-            config: {},
-            isActive: true,
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      } catch (err) {
-        console.error('Failed to upsert Gmail integration:', err);
-      }
-
-      res.redirect(`${FRONTEND_URL}/integrations?gmail=connected&success=true`);
-    } else {
-      res.redirect(`${FRONTEND_URL}/integrations?error=token_exchange_failed`);
-    }
+    if (saved) redirectToIntegrations(res, 'gmail=connected&success=true');
   } catch (error) {
-    console.error('Gmail OAuth error:', error);
-    res.redirect(`${FRONTEND_URL}/integrations?error=oauth_failed`);
+    logger.error('Gmail OAuth error:', error);
+    redirectToIntegrations(res, 'error=oauth_failed');
   }
 });
 

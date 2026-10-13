@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Proposal } from "@/lib/api-client";
+import type { AnalyzeResponse, Proposal } from "@/lib/api-client";
 
 type ProposalStatus = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
 
@@ -13,7 +13,8 @@ export interface ProposalContextType {
     proposal: Omit<Proposal, "id" | "createdAt" | "updatedAt">
   ) => Promise<Proposal | null>;
   deleteProposal: (id: string) => Promise<void>;
-  analyzeProposal: (id: string) => Promise<void>;
+  /** Analyze (or re-analyze) a proposal; null when the API is offline. */
+  analyzeProposal: (id: string) => Promise<AnalyzeResponse | null>;
   refreshProposals: () => Promise<"ok" | "offline">;
   isApiConnected: boolean;
 }

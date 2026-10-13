@@ -42,7 +42,7 @@ DealSentry catches these before the proposal leaves the building."
 ## 5. Semantic search (45s)
 
 - Search "cloud migration" — results rank by *meaning* (pgvector cosine
-  similarity over Azure OpenAI embeddings), not keywords. Mention the graceful
+  similarity over AI embeddings), not keywords. Mention the graceful
   fallback to substring search when embeddings are unavailable.
 
 ## 6. CRM integration (45s)
@@ -59,14 +59,18 @@ DealSentry catches these before the proposal leaves the building."
 
 ## 8. Close (30s)
 
-"React + Express + Supabase + Azure OpenAI, deployed on Render from a Docker
+"React + Express + Supabase + Gemini/Azure OpenAI, deployed on Render from a Docker
 blueprint, CI-tested, with policy enforced in code and AI explaining the why.
 Everything you saw is in the repo — including the architecture doc."
 
 ## Q&A cheat sheet
 
-- **Why no login?** Demo mode by design; the JWT/bcrypt stack is live and
-  honored when a token is present (`docs/AUTH_QUICKSTART.md`).
+- **Why no login?** Demo mode by design. Real multi-user mode ships too:
+  `AUTH_MODE=login` adds email + password sign-in and per-company data isolation
+  (`docs/AUTH_QUICKSTART.md`).
+- **What if the AI is down?** Analysis falls back to a deterministic rule checker
+  (discount cap, minimum deal, payment terms, required clauses) and the report
+  says which engine produced it.
 - **What stops the AI hallucinating compliance?** Deterministic re-checks in
   code: discounts clamped, thresholds hardcoded, findings normalized.
 - **How would you scale it?** Enable RLS + service-role key (already

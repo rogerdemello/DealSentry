@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth } from './middleware/auth';
+import { logger } from './lib/logger';
 import { getScopedAuditLogs } from './lib/auditQuery';
 
 const router = Router();
@@ -10,7 +11,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     const logs = await getScopedAuditLogs(req, 100);
     res.json(logs);
   } catch (error) {
-    console.error('Error fetching audit logs:', error);
+    logger.error('Error fetching audit logs:', error);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
   }
 });

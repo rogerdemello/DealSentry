@@ -40,7 +40,7 @@ Typical development time was about 2 to 4 focused hours per day during active im
 
 ### Requirements
 
-- Node.js 18 or newer
+- Node.js 20 or newer
 - PostgreSQL 14 or newer, or a Supabase project
 - npm
 
@@ -53,6 +53,8 @@ npx prisma db push          # sync the schema (this repo has no migration files)
 npm run seed
 ```
 
+Copy `.env.example` to `.env` and fill it in (Supabase URL/key, and an AI provider — see below).
+
 Then apply the one-time manual SQL (idempotent, safe to re-run):
 
 ```bash
@@ -60,7 +62,7 @@ Then apply the one-time manual SQL (idempotent, safe to re-run):
 npx prisma db execute --file prisma/manual/semantic_search.sql
 npm run backfill:embeddings
 
-# Storage bucket + policies (required for document upload)
+# Storage bucket (only needed if you use the /api/files upload endpoints)
 npx prisma db execute --file prisma/manual/storage_bucket.sql
 ```
 
@@ -71,6 +73,54 @@ npm run dev:full
 ```
 
 On Windows, you can also use `start.bat` to launch the backend and frontend together.
+
+## Configuration
+
+### AI provider
+
+Set **one** of these in `.env`:
+
+| Provider | Variables |
+| --- | --- |
+| Google Gemini (checked first) | `GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-2.5-flash`) |
+| Azure OpenAI | `AZURE_OPENAI_ENDPOINT`, `OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` |
+
+With **no** provider configured, or when the provider is unreachable or returns an unusable answer,
+**analysis still works**: it falls back to a built-in rule checker (discount cap, minimum deal size,
+payment terms, required clauses, document structure) and the report says so. Set `ANALYSIS_MODE=rules`
+to force the rule checker. Proposal *generation* needs an AI provider and reports `AI_UNAVAILABLE` without one.
+
+Semantic search uses embeddings from the same provider (Gemini `gemini-embedding-001`, or the Azure
+embedding deployment). After switching provider, re-embed everything:
+`npm run backfill:embeddings -- --all`.
+
+### Authentication
+
+| `AUTH_MODE` | Behaviour |
+| --- | --- |
+| `demo` (default) | No sign-in. Every visitor is the default user (`DEMO_USER_EMAIL`, else the first admin). Ideal for demos. |
+| `login` | Real multi-user mode. Every route needs a token; people sign in with email and password; data is isolated per company (or per owner for users without a company). |
+
+Going multi-user:
+
+1. Set `AUTH_MODE=login` and a long random `NEXTAUTH_SECRET` (the server refuses to start without one).
+2. `npx prisma db execute --file prisma/manual/multi_user.sql` (adds `User.company_id` and indexes).
+3. `npm run set-passwords` — issues each user a random password, shown once. Admins can create users with a
+   password and company through `POST /api/users`; set `ALLOW_SELF_REGISTRATION=true` to let people sign up.
+
+### Hardening the database
+
+Row Level Security is **off** by default, which means the public Supabase anon key can read every table.
+To lock it down, follow the steps at the top of `prisma/manual/enable_rls.sql` (set `SUPABASE_SERVICE_ROLE_KEY`
+first, then `npm run check:rls`, run the SQL, and `npm run check:rls -- --verify`).
+
+## Testing
+
+```bash
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
+CI runs the same four steps on every push and pull request.
 
 ## Documentation
 
