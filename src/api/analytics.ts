@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
-import { requireAuth, isAdmin } from './middleware/auth';
+import { requireAuth, listScope } from './middleware/auth';
 import { buildAnalyticsSummary, type AnalyticsProposal } from './lib/analytics';
+import { logger } from './lib/logger';
 
 const router = Router();
 
@@ -29,8 +30,9 @@ router.get('/summary', requireAuth, async (req: Request, res: Response) => {
         RiskReport (readinessScore, legalRisk, pricingRisk, structuralRisk)
       `);
 
-    if (!isAdmin(req) && req.user?.companyId) {
-      query = query.eq('company_id', req.user.companyId);
+    const scope = listScope(req);
+    if (scope) {
+      query = query.eq(scope.column, scope.value);
     }
 
     const { data: rows, error } = await query;
@@ -55,7 +57,7 @@ router.get('/summary', requireAuth, async (req: Request, res: Response) => {
 
     res.json(buildAnalyticsSummary(proposals));
   } catch (error) {
-    console.error('Error building analytics summary:', error);
+    logger.error('Error building analytics summary:', error);
     res.status(500).json({ error: 'Failed to build analytics summary' });
   }
 });

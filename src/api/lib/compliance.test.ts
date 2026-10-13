@@ -65,11 +65,46 @@ describe('normalizeAnalysis', () => {
     expect(result.recommendations).toHaveLength(1);
   });
 
-  it('falls back to defaults when a score is zero/falsy (documented behaviour)', () => {
-    // 0 is falsy so it defaults — this mirrors the original `x || default` logic.
-    const result = normalizeAnalysis({ readinessScore: 0, legalRisk: 0 });
+  it('keeps a genuine zero score instead of replacing it with a default', () => {
+    const result = normalizeAnalysis({ readinessScore: 0, legalRisk: 0, pricingRisk: 0, structuralRisk: 0 });
+    expect(result.readinessScore).toBe(0);
+    expect(result.legalRisk).toBe(0);
+    expect(result.pricingRisk).toBe(0);
+    expect(result.structuralRisk).toBe(0);
+  });
+
+  it('falls back to defaults for missing or non-numeric scores', () => {
+    const result = normalizeAnalysis({
+      readinessScore: 'high' as unknown as number,
+      legalRisk: null as unknown as number,
+      pricingRisk: NaN,
+    });
     expect(result.readinessScore).toBe(50);
     expect(result.legalRisk).toBe(20);
+    expect(result.pricingRisk).toBe(20);
+    expect(result.structuralRisk).toBe(20);
+  });
+
+  it('accepts numeric strings and clamps scores to 0-100', () => {
+    const result = normalizeAnalysis({
+      readinessScore: '85' as unknown as number,
+      legalRisk: 140,
+      pricingRisk: -5,
+      structuralRisk: 33.6,
+    });
+    expect(result.readinessScore).toBe(85);
+    expect(result.legalRisk).toBe(100);
+    expect(result.pricingRisk).toBe(0);
+    expect(result.structuralRisk).toBe(34);
+  });
+
+  it('ignores findings/recommendations that are not arrays', () => {
+    const result = normalizeAnalysis({
+      findings: { oops: true } as unknown as unknown[],
+      recommendations: 'none' as unknown as unknown[],
+    });
+    expect(result.findings).toEqual([]);
+    expect(result.recommendations).toEqual([]);
   });
 });
 
