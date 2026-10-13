@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { requireAuth, isAdmin } from './middleware/auth';
+import { logger } from './lib/logger';
 
 const router = Router();
 
@@ -13,9 +14,9 @@ function toRuleShape(r: Record<string, unknown> | null): Record<string, unknown>
     type: r.type ?? 'STRUCTURAL',
     description: r.description ?? '',
     logic: r.logic ?? {},
-    isActive: (r as any).isActive ?? (r as any).is_active ?? true,
-    createdAt: (r as any).createdAt ?? (r as any).created_at ?? new Date().toISOString(),
-    updatedAt: (r as any).updatedAt ?? (r as any).updated_at ?? new Date().toISOString(),
+    isActive: r.isActive ?? r.is_active ?? true,
+    createdAt: r.createdAt ?? r.created_at ?? new Date().toISOString(),
+    updatedAt: r.updatedAt ?? r.updated_at ?? new Date().toISOString(),
   };
 }
 
@@ -35,7 +36,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     const normalized = (rules || []).map((r) => toRuleShape(r)).filter(Boolean);
     res.json(normalized);
   } catch (error) {
-    console.error('Error fetching rules:', error);
+    logger.error('Error fetching rules:', error);
     res.status(500).json({ error: 'Failed to fetch rules' });
   }
 });
@@ -82,12 +83,12 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
     const body = toRuleShape(rule);
     if (!body) {
-      console.error('Create rule: insert did not return a row');
+      logger.error('Create rule: insert did not return a row');
       return res.status(500).json({ error: 'Failed to create rule' });
     }
     res.status(201).json(body);
   } catch (error) {
-    console.error('Error creating rule:', error);
+    logger.error('Error creating rule:', error);
     res.status(500).json({ error: 'Failed to create rule' });
   }
 });
@@ -120,7 +121,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
 
     res.json(toRuleShape(rule));
   } catch (error) {
-    console.error('Error updating rule:', error);
+    logger.error('Error updating rule:', error);
     res.status(500).json({ error: 'Failed to update rule' });
   }
 });
@@ -137,7 +138,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
     if (error) throw error;
     res.json({ success: true });
   } catch (error) {
-    console.error('Error deleting rule:', error);
+    logger.error('Error deleting rule:', error);
     res.status(500).json({ error: 'Failed to delete rule' });
   }
 });
