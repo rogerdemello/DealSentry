@@ -68,23 +68,20 @@ function getRuleTypeBadgeColor(type: string): string {
 
 /** Human-readable summary of rule logic for the card. */
 function formatRuleLogic(rule: Rule): string {
-  const logic = rule.logic ?? {};
-  if (rule.type === "DISCOUNT" && typeof (logic as any).maxDiscount === "number") {
-    return `Max discount: ${(logic as any).maxDiscount}%`;
+  const logic: Record<string, unknown> = rule.logic ?? {};
+  const { maxDiscount, minDealSize, approvalThreshold, maxPaymentDays, requiredTerms, requiredSections } = logic;
+  if (rule.type === "DISCOUNT" && typeof maxDiscount === "number") {
+    return `Max discount: ${maxDiscount}%`;
   }
   if (rule.type === "PRICING") {
-    const min = (logic as any).minDealSize;
-    const threshold = (logic as any).approvalThreshold;
-    if (typeof min === "number") return `Min deal size: $${min.toLocaleString()}`;
-    if (typeof threshold === "number") return `Approval threshold: $${threshold.toLocaleString()}`;
+    if (typeof minDealSize === "number") return `Min deal size: $${minDealSize.toLocaleString()}`;
+    if (typeof approvalThreshold === "number") return `Approval threshold: $${approvalThreshold.toLocaleString()}`;
   }
-  if (rule.type === "PAYMENT" && typeof (logic as any).maxPaymentDays === "number") {
-    return `Max payment terms: ${(logic as any).maxPaymentDays} days`;
+  if (rule.type === "PAYMENT" && typeof maxPaymentDays === "number") {
+    return `Max payment terms: ${maxPaymentDays} days`;
   }
-  const terms = (logic as any).requiredTerms;
-  const sections = (logic as any).requiredSections;
-  if (Array.isArray(terms) && terms.length) return `Required: ${terms.join(", ")}`;
-  if (Array.isArray(sections) && sections.length) return `Sections: ${sections.join(", ")}`;
+  if (Array.isArray(requiredTerms) && requiredTerms.length) return `Required: ${requiredTerms.join(", ")}`;
+  if (Array.isArray(requiredSections) && requiredSections.length) return `Sections: ${requiredSections.join(", ")}`;
   return JSON.stringify(logic);
 }
 

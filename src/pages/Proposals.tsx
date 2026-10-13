@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, SlidersHorizontal, FileText, Upload, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, SlidersHorizontal, FileText, Upload, Trash2, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,6 +29,7 @@ export default function Proposals() {
   const [sortBy, setSortBy] = useState<SortOption>("date");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Semantic ranking (id -> similarity) when available; null => substring fallback.
   const [semanticRank, setSemanticRank] = useState<Map<string, number> | null>(null);
 
@@ -132,6 +133,53 @@ export default function Proposals() {
     setSelectedIds(newSelected);
   };
 
+  // The API analyzes at most this many proposals per request.
+  const BULK_ANALYZE_BATCH = 10;
+
+  const handleBulkAnalyze = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    setIsAnalyzing(true);
+    try {
+      let analyzed = 0;
+      let failed = 0;
+      let byRules = 0;
+
+      for (let i = 0; i < ids.length; i += BULK_ANALYZE_BATCH) {
+        const { results } = await proposalsApi.analyzeBulk(ids.slice(i, i + BULK_ANALYZE_BATCH));
+        for (const result of results) {
+          if (result.ok) {
+            analyzed++;
+            if (result.analysisSource === "rules") byRules++;
+          } else {
+            failed++;
+          }
+        }
+      }
+
+      toast({
+        title: failed ? "Analysis finished with errors" : "Analysis complete",
+        description:
+          `${analyzed} proposal${analyzed !== 1 ? "s" : ""} analyzed` +
+          (failed ? `, ${failed} failed` : "") +
+          (byRules ? `. ${byRules} used the built-in rule checker because the AI was unavailable.` : "."),
+        variant: failed && !analyzed ? "destructive" : undefined,
+      });
+
+      setSelectedIds(new Set());
+      await refreshProposals();
+    } catch (error) {
+      toast({
+        title: "Failed to analyze proposals",
+        description: error instanceof Error && error.message ? error.message : "An error occurred while analyzing",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
 
@@ -157,10 +205,10 @@ export default function Proposals() {
 
       setSelectedIds(new Set());
       await refreshProposals();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to delete proposals",
-        description: error?.message || "An error occurred while deleting",
+        description: error instanceof Error && error.message ? error.message : "An error occurred while deleting",
         variant: "destructive",
       });
     } finally {
@@ -247,16 +295,31 @@ export default function Proposals() {
                 Select All ({selectedIds.size})
               </label>
               {selectedIds.size > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={isDeleting}
-                  className="ml-2"
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  Delete ({selectedIds.size})
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkAnalyze}
+                    disabled={isAnalyzing || isDeleting}
+                    className="ml-2"
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-1.5" />
+                    )}
+                    Analyze ({selectedIds.size})
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isDeleting || isAnalyzing}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Delete ({selectedIds.size})
+                  </Button>
+                </>
               )}
             </div>
           )}
