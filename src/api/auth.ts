@@ -4,14 +4,21 @@ import bcrypt from 'bcryptjs';
 import { supabase } from '../lib/supabase';
 import { requireAuth } from './middleware/auth';
 import { authLimiter } from './middleware/rateLimit';
+import { allowSelfRegistration, getAuthMode, getJwtSecret } from './lib/authConfig';
+import { logger } from './lib/logger';
 
 const router = Router();
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
 const SALT_ROUNDS = 10;
 
-// GET current session. There is no login screen, so this reports whichever user
-// requireAuth resolved (a valid token if one was sent, otherwise the default user).
+// Public: tells the SPA whether to show a sign-in screen. No secrets, no user data.
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({ mode: getAuthMode(), allowRegistration: allowSelfRegistration() });
+});
+
+// GET current session: whichever user requireAuth resolved. In demo mode that is
+// the default user when no token is sent; in login mode a valid token is required
+// (401 AUTH_REQUIRED otherwise).
 router.get('/session', requireAuth, (req: Request, res: Response) => {
   res.json({ user: req.user });
 });
@@ -53,7 +60,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role, companyId },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
@@ -68,40 +75,42 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error during login:', error);
+    logger.error('Error during login:', error);
     res.status(500).json({ error: 'Failed to login' });
   }
 });
 
-// POST register
+// POST register — self-service sign-up, off unless ALLOW_SELF_REGISTRATION=true.
+// New accounts are always SALES_REP with no company: a client-supplied companyId
+// would let anyone join (and read) any tenant, so companies are assigned by an
+// administrator (POST/PATCH /api/users) instead.
 router.post('/register', authLimiter, async (req: Request, res: Response) => {
   try {
-    const { email, name, password } = req.body;
+    if (!allowSelfRegistration()) {
+      return res.status(403).json({ error: 'Self-registration is disabled. Ask an administrator to create your account.' });
+    }
+
+    const { name, password } = req.body;
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Validate password strength
-    if (password.length < 8) {
+    if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters long' });
     }
 
-    // Check if user already exists
-    const { data: existing } = await supabase
-      .from('User')
-      .select('id')
-      .eq('email', email)
-      .single();
+    // Check if user already exists (limit(1), not single(): single() errors on duplicates and would let them through)
+    const { data: existing } = await supabase.from('User').select('id').eq('email', email).limit(1);
 
-    if (existing) {
+    if (existing && existing.length > 0) {
       return res.status(409).json({ error: 'User already exists' });
     }
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
-    const companyId = (req.body.companyId as string) || null;
 
     const insertPayload: Record<string, unknown> = {
       id: crypto.randomUUID(),
@@ -111,7 +120,6 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       role: 'SALES_REP',
       updatedAt: new Date().toISOString(),
     };
-    if (companyId) insertPayload.company_id = companyId;
 
     const { data: user, error } = await supabase
       .from('User')
@@ -125,7 +133,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role, companyId: userCompanyId },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
@@ -140,7 +148,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error during registration:', error);
+    logger.error('Error during registration:', error);
     res.status(500).json({ error: 'Failed to register' });
   }
 });
@@ -205,7 +213,7 @@ router.post('/change-password', authLimiter, requireAuth, async (req: Request, r
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Error changing password:', error);
+    logger.error('Error changing password:', error);
     res.status(500).json({ error: 'Failed to change password' });
   }
 });
