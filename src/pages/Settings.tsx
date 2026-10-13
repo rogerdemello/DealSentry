@@ -62,10 +62,10 @@ export default function Settings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to change password",
-        description: error?.message || "Please check your current password and try again",
+        description: error instanceof Error && error.message ? error.message : "Please check your current password and try again",
         variant: "destructive",
       });
     } finally {

@@ -6,8 +6,8 @@
 # Free plan (512 MB). Note the trade-offs:
 #   - Spins down after ~15 min idle → first request after a lull is slow (cold start).
 #   - PDF export (headless Chromium) is the one feature that may OOM at 512 MB even
-#     with the memory flags in src/api/proposals.ts. If PDF exports fail, the only
-#     real fix is to bump `plan` to `starter`/`standard`.
+#     with the memory flags in src/api/lib/proposalPdf.ts (exports run one at a time).
+#     If PDF exports fail, the only real fix is to bump `plan` to `starter`/`standard`.
 services:
   - type: web
     name: dealsentry
@@ -33,6 +33,10 @@ services:
       # Optional: preferred over the anon key when set (survives enabling RLS).
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # AI provider: set GEMINI_API_KEY, or the two Azure variables below. With neither,
+      # analysis still works (built-in rule checker); generation and semantic search do not.
+      - key: GEMINI_API_KEY
+        sync: false
       - key: AZURE_OPENAI_ENDPOINT
         sync: false
       - key: OPENAI_API_KEY
@@ -43,6 +47,12 @@ services:
       # the first ADMIN in the User table if unset.
       - key: DEMO_USER_EMAIL
         value: admin@reviewer.ai
+      # demo = no sign-in (everyone is the default user). Use "login" for real accounts:
+      # see docs/AUTH_QUICKSTART.md (needs prisma/manual/multi_user.sql + npm run set-passwords).
+      - key: AUTH_MODE
+        value: demo
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: AZURE_OPENAI_DEPLOYMENT
         value: gpt-4o
       - key: AZURE_OPENAI_API_VERSION

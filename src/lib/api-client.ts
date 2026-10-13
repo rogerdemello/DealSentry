@@ -1,3 +1,6 @@
+import { clearAuthData } from './auth-utils';
+import { emitAuthRequired } from './auth-events';
+
 /** Thrown for non-OK HTTP responses so callers can distinguish 401 from network failures. */
 export class ApiError extends Error {
   constructor(
@@ -115,6 +118,35 @@ const RETRY_CONFIG = {
 // Helper function to wait/delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/** The server said a sign-in is required (login mode): drop the dead session and tell the UI. */
+function handleAuthRequired(): void {
+  clearAuthData();
+  emitAuthRequired();
+}
+
+/**
+ * fetch() for endpoints that return something other than JSON (PDF downloads,
+ * file blobs) or that a page wants to inspect itself. Adds the session token,
+ * points at the API host, and — like apiCall — reacts to 401 AUTH_REQUIRED.
+ * `path` is an API path such as "/api/proposals/1/export/pdf".
+ */
+export async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const token = localStorage.getItem('auth_token');
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
+  });
+
+  if (response.status === 401) {
+    const body = (await response.clone().json().catch(() => null)) as { code?: string } | null;
+    if (body?.code === 'AUTH_REQUIRED') handleAuthRequired();
+  }
+  return response;
+}
+
 // Health check function to verify API server is reachable
 export async function checkApiHealth(): Promise<boolean> {
   try {
@@ -179,6 +211,9 @@ async function apiCall<T>(
       error?: string;
       code?: string;
     };
+    if (response.status === 401 && error.code === 'AUTH_REQUIRED') {
+      handleAuthRequired();
+    }
     throw new ApiError(
       error.error || `API error: ${response.status}`,
       response.status,
@@ -187,6 +222,30 @@ async function apiCall<T>(
   }
 
   return response.json();
+}
+
+/** 'ai' = produced by the model; 'rules' = the built-in checker (AI unavailable). */
+export type AnalysisSource = 'ai' | 'rules';
+
+export interface AnalyzeResponse {
+  proposalId: string;
+  analysisSource: AnalysisSource;
+  statusAdvanced: boolean;
+  riskReport: Proposal['riskReport'];
+}
+
+export interface BulkAnalyzeResult {
+  proposalId: string;
+  ok: boolean;
+  analysisSource?: AnalysisSource;
+  readinessScore?: number;
+  statusAdvanced?: boolean;
+  error?: string;
+}
+
+export interface BulkAnalyzeResponse {
+  results: BulkAnalyzeResult[];
+  summary: { requested: number; analyzed: number; failed: number };
 }
 
 // Proposals API
@@ -219,9 +278,20 @@ export const proposalsApi = {
     }),
   
   analyze: (id: string) =>
-    apiCall<{ proposalId: string; riskReport: Proposal['riskReport'] }>(`/api/analyze/${id}`, {
+    apiCall<AnalyzeResponse>(`/api/analyze/${id}`, {
       method: 'POST',
     }),
+
+  // Analyze several proposals in one request (at most 10).
+  analyzeBulk: (ids: string[]) =>
+    apiCall<BulkAnalyzeResponse>('/api/analyze/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+
+  // Which engine a new analysis will use: the AI, or the built-in rule checker.
+  analysisMode: () =>
+    apiCall<{ mode: 'ai' | 'rules'; provider: string | null; model: string | null }>('/api/analyze/mode'),
 
   // Semantic search. `available:false` => pgvector/embeddings not set up yet;
   // callers should fall back to client-side substring filtering.
@@ -322,12 +392,13 @@ export interface User {
 export const usersApi = {
   getAll: () => apiCall<User[]>('/api/users'),
   getById: (id: string) => apiCall<User>(`/api/users/${id}`),
-  create: (data: { email: string; name?: string; role?: User['role'] }) =>
+  // Admin only. `password` sets an initial password (needed to sign in under login mode).
+  create: (data: { email: string; name?: string; role?: User['role']; password?: string; companyId?: string }) =>
     apiCall<User>('/api/users', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  update: (id: string, data: Partial<User>) =>
+  update: (id: string, data: Partial<User> & { password?: string }) =>
     apiCall<User>(`/api/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -338,9 +409,31 @@ export const usersApi = {
     }),
 };
 
-// Session API — no login screen; the server resolves the acting user.
+// Auth API. In "demo" mode there is no sign-in: the server resolves a default user.
+// In "login" mode a session token (from login/register) is required.
+export interface AuthConfig {
+  mode: 'demo' | 'login';
+  allowRegistration: boolean;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export const authApi = {
+  config: () => apiCall<AuthConfig>('/api/auth/config'),
   session: () => apiCall<{ user: User }>('/api/auth/session'),
+  login: (email: string, password: string) =>
+    apiCall<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  register: (data: { email: string; password: string; name?: string }) =>
+    apiCall<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   changePassword: (currentPassword: string, newPassword: string) =>
     apiCall<{ message: string }>('/api/auth/change-password', {
       method: 'POST',
@@ -348,12 +441,21 @@ export const authApi = {
     }),
 };
 
+// OAuth: the redirect endpoints cannot carry an Authorization header, so the SPA
+// first asks for a short-lived single-purpose token to put in the URL.
+export const oauthApi = {
+  startToken: () => apiCall<{ token: string }>('/api/oauth/start-token', { method: 'POST' }),
+};
+
 // Integrations API
 export interface Integration {
   id: string;
   type: 'SALESFORCE' | 'HUBSPOT' | 'GMAIL' | 'GOOGLE_DRIVE' | 'DOCUSIGN' | 'SHAREPOINT';
   name: string;
+  /** Redacted by the server: tokens never reach the browser; non-empty only when connected. */
   credentials: Record<string, unknown>;
+  /** True when the integration holds stored credentials (i.e. is connected). */
+  hasCredentials?: boolean;
   config: Record<string, unknown>;
   isActive: boolean;
   lastSyncAt: string | null;
@@ -365,7 +467,7 @@ export interface SyncLog {
   id: string;
   integrationId: string;
   action: 'IMPORT' | 'EXPORT' | 'SYNC';
-  status: 'SUCCESS' | 'FAILED' | 'PARTIAL';
+  status: 'SUCCESS' | 'FAILURE' | 'FAILED' | 'PARTIAL';
   recordsAffected: number;
   details: Record<string, unknown>;
   createdAt: string;
@@ -408,12 +510,14 @@ export const filesApi = {
       method: 'POST',
       body: JSON.stringify({ file, fileName }),
     }),
-  download: (path: string) =>
-    fetch(`${API_BASE_URL}/api/files/download/${path}`).then(res => res.blob()),
-  delete: (path: string) =>
-    apiCall<{ success: boolean; message: string }>(`/api/files/${path}`, {
-      method: 'DELETE',
-    }),
+  // `filePath` is the value returned by upload (e.g. "proposals/<userId>/<timestamp>_<name>").
+  download: (filePath: string) =>
+    authFetch(`/api/files/download/${filePath.split('/').map(encodeURIComponent).join('/')}`).then(res => res.blob()),
+  delete: (filePath: string) =>
+    apiCall<{ success: boolean; message: string }>(
+      `/api/files/delete/${filePath.split('/').map(encodeURIComponent).join('/')}`,
+      { method: 'DELETE' }
+    ),
 };
 
 // Health check

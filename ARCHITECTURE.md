@@ -9,12 +9,13 @@ including the trade-offs that were made deliberately.
 ```mermaid
 flowchart LR
     subgraph Browser
-        SPA["React 18 SPA<br/>(Vite, Tailwind, shadcn/ui,<br/>TanStack Query)"]
+        SPA["React 18 SPA<br/>(Vite, Tailwind, shadcn/ui,<br/>TanStack Query,<br/>lazy-loaded routes)"]
     end
 
     subgraph "Express API (Node 20, tsx)"
         API["REST routers<br/>/api/proposals /rules /analyze<br/>/files /integrations /oauth ..."]
-        MW["Middleware<br/>helmet · CORS allowlist ·<br/>rate limits · session resolver"]
+        MW["Middleware<br/>helmet · CORS allowlist ·<br/>rate limits · session resolver<br/>(demo or login mode)"]
+        SVC["Services (src/api/lib)<br/>analysis · rule checker ·<br/>CRM sync connectors"]
         PDF["PDF export<br/>(Puppeteer / headless Chrome)"]
     end
 
@@ -24,20 +25,20 @@ flowchart LR
         STORE["Storage<br/>(proposal-files bucket)"]
     end
 
-    subgraph Azure["Azure OpenAI"]
-        GPT["gpt-4o<br/>(analysis + generation)"]
-        EMB["text-embedding-ada-002<br/>(semantic search)"]
+    subgraph LLM["LLM provider (one of)"]
+        GEM["Google Gemini<br/>gemini-2.5-flash ·<br/>gemini-embedding-001"]
+        AZ["Azure OpenAI<br/>gpt-4o · ada-002"]
     end
 
     CRM["Salesforce · HubSpot · Gmail<br/>(OAuth 2.0, demo mode available)"]
 
-    SPA -- "/api/* (same-origin,<br/>Vite proxy in dev)" --> MW --> API
-    API -- "supabase-js (REST)" --> REST --> PG
-    API --> STORE
-    API --> GPT
-    API --> EMB
-    API <--> CRM
-    PDF --> API
+    SPA -- "/api/* (same-origin,<br/>Vite proxy in dev)" --> MW --> API --> SVC
+    SVC -- "supabase-js (REST)" --> REST --> PG
+    SVC --> STORE
+    SVC -. "analysis · generation ·<br/>embeddings" .-> GEM
+    SVC -. "or" .-> AZ
+    SVC <--> CRM
+    API --> PDF
 ```
 
 ## Key design decisions
@@ -56,67 +57,120 @@ The trade-off: no compile-time query types at runtime (PostgREST returns
 untyped JSON). That's the price of running well on a free tier; the routers
 type their own row interfaces at the boundary instead.
 
-### 2. Demo-first authentication
+### 2. Two authentication modes
 
-There is deliberately **no login screen**: every request is served as a default
-user (`DEMO_USER_EMAIL`, falling back to the first ADMIN). The full JWT +
-bcrypt stack still exists (`/api/auth/login`, `/register`,
-`/change-password`) and valid bearer tokens win over the default identity, so
-real multi-user auth can be re-enabled by rendering the login page again.
+`AUTH_MODE` (read on every request, see `src/api/lib/authConfig.ts`) selects:
 
-### 3. AI with guardrails, not AI instead of rules
+- **`demo`** (default) — deliberately **no login screen**: every request is served
+  as a default user (`DEMO_USER_EMAIL`, falling back to the first ADMIN). A valid
+  bearer token still wins over the default identity.
+- **`login`** — real multi-user mode. No default identity: a request without a valid
+  token gets `401 AUTH_REQUIRED` and the SPA shows a sign-in page. Data is isolated
+  per company, and users with no company only see what they own
+  (`canAccessResource` / `listScope` in `middleware/auth.ts`). The server refuses to
+  start in this mode without a real `NEXTAUTH_SECRET`.
 
-`/api/analyze` sends the proposal *content* (source of truth) plus the active
-compliance rules to gpt-4o and asks for structured findings. Hard limits
-(max 25% discount, 90-day payment terms, mandatory legal clauses, $10k minimum
-deal) are enforced twice: stated in the prompt *and* re-checked/capped in
-code after generation (`/api/proposals/generate` clamps the discount range).
-Results are normalized (`normalizeAnalysis`) before they become a RiskReport.
+Both modes share the same routes and middleware; the mode only changes how a
+request's user is resolved and how strictly rows are scoped. Details and the
+hardening around OAuth redirects: `docs/AUTH_QUICKSTART.md`.
+
+### 3. AI with guardrails, and a fallback when the AI is gone
+
+`/api/analyze` (`src/api/lib/analysisService.ts`) sends the proposal *content*
+(source of truth) plus the active compliance rules to the configured model and
+asks for structured findings. Hard limits (max 25% discount, 90-day payment
+terms, mandatory legal clauses, $10k minimum deal) are stated in the prompt, and
+`/api/proposals/generate` additionally re-validates and clamps what the model
+returns (`proposalGeneration.ts`). Results are normalized (`normalizeAnalysis`)
+before they become a RiskReport.
+
+When the model is unconfigured, unreachable, times out, or returns unparseable
+JSON, analysis does **not** fail: `ruleAnalysis.ts` answers the same questions
+deterministically (it extracts the discount, deal value and payment term from the
+text, checks for the required clauses and sections, and applies the thresholds from
+the active `Rule` rows). The report carries an `ANALYSIS MODE` finding and the API
+returns `analysisSource: "ai" | "rules"`, so the UI and reviewers can tell which
+engine produced it. `ANALYSIS_MODE=rules` forces it.
+
+The provider is chosen by `src/api/lib/llm.ts`: Gemini (through its
+OpenAI-compatible endpoint) if `GEMINI_API_KEY` is set, else Azure OpenAI, else
+none — resolved lazily so the server boots with no AI configured.
 
 ### 4. Semantic search via pgvector
 
 Every proposal gets a 1536-dim embedding on create (best-effort — failures
 never block the write). Search calls the `match_proposals` SQL function
-(cosine distance, ivfflat index). If the extension/function is missing the API
+(cosine distance, HNSW index). If the extension/function is missing the API
 answers `available: false` and the client falls back to substring search —
 the feature degrades, it doesn't break.
 
-Setup lives in `prisma/manual/semantic_search.sql`; backfill with
-`npm run backfill:embeddings`.
+Vectors from different models are not comparable, so every instance sharing a
+database must use the same embedding model; after changing it, re-embed with
+`npm run backfill:embeddings -- --all`. Setup: `prisma/manual/semantic_search.sql`,
+`docs/SEMANTIC_SEARCH.md`.
 
 ### 5. Integrations with a real demo mode
 
 Salesforce/HubSpot/Gmail connect over standard OAuth 2.0. With
 `*_DEMO_MODE=true`, connect stores `{demo: true}` credentials and **sync
 imports canned deals as proposals**, so the connect → sync → analyze → approve
-story is demonstrable without any external accounts. Real-mode sync handles
-token refresh and dedupes on the CRM record id.
+story is demonstrable without any external accounts.
+
+Each CRM is its own connector under `src/api/lib/sync/` (`hubspot.ts`,
+`gmail.ts`, `salesforce.ts`, `demo.ts`) behind one `runSync` dispatcher. They
+refresh expired tokens, de-duplicate on the CRM record id *per user*, attach the
+integration owner's user and company to everything they import, and time out
+rather than hang. A failed sync is reported as `424` with the reason (and
+`needsReconnect` when the connection is revoked), never as a silent `200`.
+
+OAuth tokens never leave the server: integration responses carry a `hasCredentials`
+flag instead. The `state` parameter is a signed, expiring token, and the SPA starts
+the redirect with a 2-minute single-purpose token rather than its session token.
+The Salesforce instance URL is validated against Salesforce's domains before any
+request is made (it lives in user-editable credentials, so it is an SSRF vector).
 
 ### 6. Deployment (Render, Docker)
 
 One container serves both the API and the built SPA (Express serves `dist/` in
 production, so CORS is a non-issue for same-origin traffic). The runtime image
 installs system Chromium for PDF export (`PUPPETEER_EXECUTABLE_PATH`), because
-the free tier's 512 MB can't afford Puppeteer's bundled download at build time.
+the free tier's 512 MB can't afford Puppeteer's bundled download at build time;
+exports run one at a time and always close the browser. The server trusts one
+proxy hop in production (`TRUST_PROXY`) so per-IP rate limits see real visitors.
 `render.yaml` is a full Blueprint — secrets are dashboard-only (`sync: false`).
+
+### 7. Frontend delivery
+
+Every page is a lazy route (`React.lazy` in `App.tsx`), and `vite.config.ts` groups
+React, the router, Radix, animation and chart libraries into separate vendor
+chunks — so the first load carries the shell and the chart library is fetched only
+by the pages that draw charts.
 
 ## Security model (current state and roadmap)
 
 | Area | Today | Next step |
 | --- | --- | --- |
-| API auth | Default-user demo mode; JWT honored when present | Re-enable login UI for multi-user |
-| DB access | Server-side key via supabase-js; anon key works, service-role preferred when set | Enable RLS per table; drop anon write policies |
-| Secrets | `.env` git-ignored; Render dashboard for prod | Rotate any key that was ever committed |
-| Responses | Password hashes stripped from every user payload; mutations admin-gated | Field-level DTOs |
+| API auth | `demo` (default) or `login` mode with email + password, signed 7-day tokens, per-company isolation | Password reset, email verification, 2FA, server-side token revocation |
+| DB access | Server-side key via supabase-js; the service-role key is preferred when set | **Enable RLS** — `prisma/manual/enable_rls.sql`, guarded by `npm run check:rls`. Until then the anon key can read every table |
+| Secrets | `.env` git-ignored; Render dashboard for prod; OAuth tokens never sent to the browser | Rotate any key that was ever committed (`CREDENTIALS.md` is in git history) |
+| Responses | Password hashes stripped everywhere; mutations admin-gated; production errors are generic | Field-level DTOs |
+| Files | Per-user folders, type allow-list, size cap, signed links; traversal rejected | Virus scanning if untrusted users upload |
+| Dependencies | `npm audit fix` applied; 0 critical | Major upgrades listed in `docs/DEPLOYMENT.md` §7 |
 
 ## Repository map
 
 ```
-server.ts              Express bootstrap, static SPA serving, error handling
-src/api/               One router per resource + middleware/ + lib/
-src/lib/               API client (frontend), supabase client (backend), utils
-src/pages/ components/ React SPA
-prisma/                schema.prisma, seed.ts, manual/*.sql (pgvector, storage)
-scripts/               backfill-embeddings, cleanup-integrations, migrate-auth
-tests/                 Vitest + Supertest API tests
+server.ts                 Process bootstrap: env, startup checks, listen, graceful shutdown
+src/api/app.ts            createApp(): middleware, routes, SPA serving, error handler (testable)
+src/api/*.ts              One router per resource
+src/api/middleware/       Session resolution (demo/login), access helpers, rate limits
+src/api/lib/              Services: analysisService, ruleAnalysis, llm, embeddings,
+                          proposalPdf, proposalGeneration, proposalStore, oauthState,
+                          integrationStore, authConfig, logger, sync/ (CRM connectors)
+src/lib/                  API client (frontend), supabase client (backend), utils
+src/hooks/                use-session (auth state), use-api-connection
+src/pages/ components/    React SPA
+prisma/                   schema.prisma, seed.ts, manual/*.sql (pgvector, storage, multi-user, RLS)
+scripts/                  backfill-embeddings, check-rls, migrate-auth (set-passwords), cleanup-integrations
+tests/                    Vitest + Supertest API tests (tests/helpers/supabaseMock.ts is the shared DB stand-in)
 ```

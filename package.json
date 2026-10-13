@@ -16,7 +16,9 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "seed": "tsx prisma/seed.ts",
-    "backfill:embeddings": "tsx scripts/backfill-embeddings.ts"
+    "backfill:embeddings": "tsx scripts/backfill-embeddings.ts",
+    "check:rls": "tsx scripts/check-rls.ts",
+    "set-passwords": "tsx scripts/migrate-auth.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -104,6 +106,7 @@
     "@types/supertest": "^7.2.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react-swc": "^3.11.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",

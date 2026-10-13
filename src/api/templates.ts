@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { requireAuth } from './middleware/auth';
+import { logger } from './lib/logger';
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     res.json(templates || []);
   } catch (error) {
-    console.error('Error fetching templates:', error);
+    logger.error('Error fetching templates:', error);
     res.status(500).json({ error: 'Failed to fetch templates' });
   }
 });
@@ -50,7 +51,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
     res.status(201).json(template);
   } catch (error) {
-    console.error('Error creating template:', error);
+    logger.error('Error creating template:', error);
     res.status(500).json({ error: 'Failed to create template' });
   }
 });

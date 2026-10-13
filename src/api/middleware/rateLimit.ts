@@ -20,6 +20,15 @@ export const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Please try again later.' },
 });
 
+/** Limiter for PDF export: each request launches headless Chrome, which is memory-hungry. */
+export const exportLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: isProduction ? 10 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many PDF exports. Please wait a moment and try again.' },
+});
+
 /** Limiter for AI generation/analysis endpoints (cost protection). */
 export const aiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute

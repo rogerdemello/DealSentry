@@ -53,7 +53,7 @@ export interface Rule {
   name: string;
   type: RuleType;
   description?: string;
-  logic: Record<string, any>;
+  logic: Record<string, unknown>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -85,7 +85,7 @@ export interface AuditLog {
   proposal?: {
     title: string;
   } | null;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export type TemplateType = "SALES_PROPOSAL" | "MSA" | "SOW" | "NDA" | "OTHER";

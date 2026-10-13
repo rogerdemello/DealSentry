@@ -13,9 +13,10 @@ import {
   User,
   Crown,
   Home as HomeIcon,
+  LogOut,
   Settings as SettingsIcon
 } from "lucide-react";
-import { useSession } from "@/hooks/use-session";
+import { signOut, useAuth } from "@/hooks/use-session";
 import NotificationBell from "@/components/NotificationBell";
 
 interface ClientLayoutProps {
@@ -41,7 +42,7 @@ const navItems: NavItem[] = [
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const location = useLocation();
-  const user = useSession();
+  const { user, mode } = useAuth();
   const userRole = user?.role || "";
   const userName = user?.name || user?.email || "User";
 
@@ -148,6 +149,18 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                 {userRole}
               </span>
             </div>
+            {/* Only meaningful when the server has real sign-in (login mode). */}
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={signOut}
+                title="Sign out"
+                aria-label="Sign out"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </motion.aside>
