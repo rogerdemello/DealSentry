@@ -1,0 +1,8 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "1f84c95f3e15edecd2c95c2d8934889d58eb5d4a",
+  "branch": "chore/hardening-and-features",
+  "prompts": {}
+}
