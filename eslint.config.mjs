@@ -25,8 +25,8 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
-      // The API/JSON boundaries intentionally use `any`; keep it advisory.
-      "@typescript-eslint/no-explicit-any": "off",
+      // Use `unknown` and narrow (or a real interface) at API/JSON boundaries.
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
