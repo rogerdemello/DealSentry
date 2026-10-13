@@ -13,6 +13,8 @@ import {
   DollarSign,
   Percent,
   Calendar,
+  Loader2,
+  RefreshCw,
   TrendingUp,
   Trash2
 } from "lucide-react";
@@ -30,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { RiskBar } from "@/components/ui/RiskBar";
-import { getApiBaseUrl } from "@/lib/api-client";
+import { authFetch } from "@/lib/api-client";
 import { useProposals } from "@/context/useProposals";
 import { useToast } from "@/hooks/use-toast";
 import { formatIST } from "@/lib/utils";
@@ -47,8 +49,9 @@ export default function ProposalReview() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { getProposal, updateProposalStatus, deleteProposal } = useProposals();
+  const { getProposal, updateProposalStatus, deleteProposal, analyzeProposal } = useProposals();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const proposal = getProposal(id || "");
   
@@ -116,20 +119,43 @@ export default function ProposalReview() {
     });
   };
 
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    try {
+      const result = await analyzeProposal(proposal.id);
+      if (!result) {
+        toast({
+          title: "Analysis unavailable",
+          description: "The API is offline. Try again once it reconnects.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Analysis complete",
+        description:
+          result.analysisSource === "rules"
+            ? "The AI was unavailable, so the built-in rule checker produced this report."
+            : result.statusAdvanced
+              ? "Report updated. The proposal looks healthy and moved to In Review."
+              : "Report updated.",
+      });
+    } catch (error) {
+      toast({
+        title: "Analysis failed",
+        description: error instanceof Error ? error.message : "Could not analyze this proposal",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleExportPdf = async () => {
     try {
-      const base = getApiBaseUrl();
-      const url = `${base}/api/proposals/${proposal.id}/export/pdf`;
-      const token = localStorage.getItem('auth_token');
-      
       toast({ title: 'Exporting PDF', description: 'Generating your PDF...' });
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-      });
+      const response = await authFetch(`/api/proposals/${proposal.id}/export/pdf`);
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Failed to export PDF' }));
@@ -416,6 +442,20 @@ export default function ProposalReview() {
               })()}
               
               <div className="border-t border-border pt-3 mt-3 space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing}
+                >
+                  {isAnalyzing ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  {isAnalyzing ? "Analyzing..." : riskReport.findings.length || riskReport.recommendations.length ? "Re-run analysis" : "Run analysis"}
+                </Button>
                 <Button
                   variant="outline"
                   className="w-full"

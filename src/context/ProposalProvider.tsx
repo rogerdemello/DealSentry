@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { proposalsApi, Proposal } from "@/lib/api-client";
 import { mockProposals } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-session";
 import { ProposalContext } from "@/context/proposal-context";
 
 type ProposalStatus = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";
@@ -17,8 +18,16 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
   // Ref, not state: never rendered, and keeping it out of effect dependencies
   // means showing the warning doesn't restart the retry loop.
   const hasShownOfflineWarningRef = useRef(false);
+  // The server is reachable but wants a sign-in (login mode). That is not "offline":
+  // stop fetching, retrying and polling — the sign-in page is on screen, and signing
+  // in reloads the app, which starts fresh.
+  const { status: authStatus } = useAuth();
+  const signInRequired = authStatus === "login-required";
 
   useEffect(() => {
+    if (signInRequired) {
+      return;
+    }
     let retryCount = 0;
     let cancelled = false;
     const maxRetries = 10;
@@ -51,11 +60,11 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only on navigation; fetchProposals/toast are stable
-  }, [location.pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only on navigation (or when sign-in becomes required); fetchProposals/toast are stable
+  }, [location.pathname, signInRequired]);
 
   useEffect(() => {
-    if (isApiConnected) {
+    if (isApiConnected || signInRequired) {
       return;
     }
     const interval = setInterval(async () => {
@@ -71,7 +80,7 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- poll only while disconnected; fetchProposals/toast are stable
-  }, [isApiConnected, location.pathname]);
+  }, [isApiConnected, location.pathname, signInRequired]);
 
   const fetchProposals = async (silent = false): Promise<"ok" | "offline"> => {
     if (!silent) {
@@ -220,12 +229,13 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
 
   const analyzeProposal = async (id: string) => {
     if (!isApiConnected) {
-      return;
+      return null;
     }
 
-    await proposalsApi.analyze(id);
+    const result = await proposalsApi.analyze(id);
     const updatedProposal = await proposalsApi.getById(id);
     setProposals((prev) => prev.map((p) => (p.id === id ? updatedProposal : p)));
+    return result;
   };
 
   return (
