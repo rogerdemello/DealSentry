@@ -83,7 +83,7 @@ async function runMigration() {
       console.log(`\nTotal integrations: ${allIntegrations.length}\n`);
       
       // Group by user
-      const byUser: { [key: string]: any[] } = {};
+      const byUser: Record<string, typeof allIntegrations> = {};
       allIntegrations.forEach(int => {
         const userId = int.userId || 'unassigned';
         if (!byUser[userId]) byUser[userId] = [];
