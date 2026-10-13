@@ -1,0 +1,568 @@
+src/api/auth.ts
+  s_4c3d211c162884::t_da9495bd6589b4 151
+  s_4c3d211c162884::t_37d195447ad808 63,78
+  s_4c3d211c162884::t_c4e2cca8c60817 216
+  s_4c3d211c162884::t_fc024752c78097 83-86,89-94,101,105-106,108,136
+  s_4c3d211c162884::t_749f168ae8632c 7-8,14-21
+src/api/lib/authConfig.ts
+  s_4c3d211c162884::t_52b92510a099d2 1-67
+scripts/migrate-auth.ts
+  s_4c3d211c162884::t_56b80eb6dde1d7 1-125
+src/api/middleware/auth.ts
+  s_4c3d211c162884::t_8b474a814bd099 4-7,13-14,40-41,69,88,93-94,99-100,116-117,129-132,136,142-146,151-153,171-174,182,198-228
+  s_4c3d211c162884::t_dbae4544086994 89-92,95,97,103-107,110-114,121
+tests/loginMode.test.ts
+  s_4c3d211c162884::t_92557dfa60f1d5 1-363
+src/api/users.ts
+  s_4c3d211c162884::t_d9f11a2a9df692 2,5-6,10-13,21-35,38-41,51,56,61-64,78,83,90-91,96-110,114,118-120,125,130,138-143,146,149-150,159-161,169,183-186,196
+prisma/manual/multi_user.sql
+  s_4c3d211c162884::t_ea871543ca0671 1-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "autter_version": "1.6.9",
+  "base_commit_sha": "17dc91f28bba903ab8e8f31ccce6de141a54b89f",
+  "branch": "chore/hardening-and-features",
+  "prompts": {
+    "s_4c3d211c162884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7eacad8e-3596-42aa-a6de-94d426d0a2e1",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "rogerdemello <rogerdemello289@gmail.com>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 12876,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_4c3d211c162884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7eacad8e-3596-42aa-a6de-94d426d0a2e1",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "rogerdemello <rogerdemello289@gmail.com>",
+      "stats": {
+        "total_additions": 0,
+        "total_deletions": 0,
+        "accepted_lines": 12876,
+        "overriden_lines": 0,
+        "files": {
+          ".env.example": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 36,
+            "overriden_lines": 0
+          },
+          "ARCHITECTURE.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 99,
+            "overriden_lines": 0
+          },
+          "README.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 52,
+            "overriden_lines": 0
+          },
+          "SETUP.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 404,
+            "overriden_lines": 0
+          },
+          "docs/AUTH_QUICKSTART.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 81,
+            "overriden_lines": 0
+          },
+          "docs/DEMO_SCRIPT.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 8,
+            "overriden_lines": 0
+          },
+          "docs/DEPLOYMENT.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 147,
+            "overriden_lines": 0
+          },
+          "docs/SEMANTIC_SEARCH.md": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 39,
+            "overriden_lines": 0
+          },
+          "eslint.config.mjs": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 54,
+            "overriden_lines": 0
+          },
+          "prisma/manual/enable_rls.sql": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 51,
+            "overriden_lines": 0
+          },
+          "prisma/manual/multi_user.sql": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 28,
+            "overriden_lines": 0
+          },
+          "prisma/manual/semantic_search.sql": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 48,
+            "overriden_lines": 0
+          },
+          "render.yaml": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 76,
+            "overriden_lines": 0
+          },
+          "scripts/backfill-embeddings.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 21,
+            "overriden_lines": 0
+          },
+          "scripts/check-rls.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 99,
+            "overriden_lines": 0
+          },
+          "scripts/migrate-auth.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 125,
+            "overriden_lines": 0
+          },
+          "scripts/migrate-integrations.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 1,
+            "overriden_lines": 0
+          },
+          "server.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 83,
+            "overriden_lines": 0
+          },
+          "src/App.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 76,
+            "overriden_lines": 0
+          },
+          "src/api/analytics.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 65,
+            "overriden_lines": 0
+          },
+          "src/api/analyze.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 98,
+            "overriden_lines": 0
+          },
+          "src/api/app.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 149,
+            "overriden_lines": 0
+          },
+          "src/api/audit.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/api/auth.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 29,
+            "overriden_lines": 0
+          },
+          "src/api/files.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 217,
+            "overriden_lines": 0
+          },
+          "src/api/integrations.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 112,
+            "overriden_lines": 0
+          },
+          "src/api/lib/analysisService.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 254,
+            "overriden_lines": 0
+          },
+          "src/api/lib/authConfig.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 67,
+            "overriden_lines": 0
+          },
+          "src/api/lib/compliance.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 156,
+            "overriden_lines": 0
+          },
+          "src/api/lib/compliance.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 112,
+            "overriden_lines": 0
+          },
+          "src/api/lib/embeddings.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 132,
+            "overriden_lines": 0
+          },
+          "src/api/lib/embeddings.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 70,
+            "overriden_lines": 0
+          },
+          "src/api/lib/gemini.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/api/lib/integrationStore.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 66,
+            "overriden_lines": 0
+          },
+          "src/api/lib/llm.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 129,
+            "overriden_lines": 0
+          },
+          "src/api/lib/llm.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 61,
+            "overriden_lines": 0
+          },
+          "src/api/lib/oauthState.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 66,
+            "overriden_lines": 0
+          },
+          "src/api/lib/oauthState.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 41,
+            "overriden_lines": 0
+          },
+          "src/api/lib/proposalGeneration.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 105,
+            "overriden_lines": 0
+          },
+          "src/api/lib/proposalGeneration.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 153,
+            "overriden_lines": 0
+          },
+          "src/api/lib/proposalPdf.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 184,
+            "overriden_lines": 0
+          },
+          "src/api/lib/proposalPdf.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 687,
+            "overriden_lines": 0
+          },
+          "src/api/lib/proposalStore.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 102,
+            "overriden_lines": 0
+          },
+          "src/api/lib/ruleAnalysis.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 280,
+            "overriden_lines": 0
+          },
+          "src/api/lib/ruleAnalysis.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 415,
+            "overriden_lines": 0
+          },
+          "src/api/lib/sync/common.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 113,
+            "overriden_lines": 0
+          },
+          "src/api/lib/sync/demo.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 56,
+            "overriden_lines": 0
+          },
+          "src/api/lib/sync/gmail.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 246,
+            "overriden_lines": 0
+          },
+          "src/api/lib/sync/hubspot.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 140,
+            "overriden_lines": 0
+          },
+          "src/api/lib/sync/index.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 33,
+            "overriden_lines": 0
+          },
+          "src/api/lib/sync/salesforce.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 186,
+            "overriden_lines": 0
+          },
+          "src/api/middleware/auth.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 85,
+            "overriden_lines": 0
+          },
+          "src/api/middleware/rateLimit.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 39,
+            "overriden_lines": 0
+          },
+          "src/api/notifications.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/api/oauth.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 350,
+            "overriden_lines": 0
+          },
+          "src/api/proposals.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 434,
+            "overriden_lines": 0
+          },
+          "src/api/rules.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 146,
+            "overriden_lines": 0
+          },
+          "src/api/templates.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 59,
+            "overriden_lines": 0
+          },
+          "src/api/users.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 75,
+            "overriden_lines": 0
+          },
+          "src/components/layout/ClientLayout.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 201,
+            "overriden_lines": 0
+          },
+          "src/components/ui/RiskBar.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 73,
+            "overriden_lines": 0
+          },
+          "src/context/ProposalProvider.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 16,
+            "overriden_lines": 0
+          },
+          "src/context/proposal-context.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 3,
+            "overriden_lines": 0
+          },
+          "src/hooks/use-session.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 162,
+            "overriden_lines": 0
+          },
+          "src/lib/api-client.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 115,
+            "overriden_lines": 0
+          },
+          "src/lib/auth-events.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 20,
+            "overriden_lines": 0
+          },
+          "src/pages/Compliance.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 541,
+            "overriden_lines": 0
+          },
+          "src/pages/Integrations.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 484,
+            "overriden_lines": 0
+          },
+          "src/pages/Login.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 139,
+            "overriden_lines": 0
+          },
+          "src/pages/ProposalReview.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 52,
+            "overriden_lines": 0
+          },
+          "src/pages/Proposals.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 423,
+            "overriden_lines": 0
+          },
+          "src/pages/Settings.tsx": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "src/types/index.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 2,
+            "overriden_lines": 0
+          },
+          "start.bat": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 93,
+            "overriden_lines": 0
+          },
+          "tests/analyze.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 372,
+            "overriden_lines": 0
+          },
+          "tests/app.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 163,
+            "overriden_lines": 0
+          },
+          "tests/files.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 282,
+            "overriden_lines": 0
+          },
+          "tests/helpers/supabaseMock.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 158,
+            "overriden_lines": 0
+          },
+          "tests/integrations.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 242,
+            "overriden_lines": 0
+          },
+          "tests/loginMode.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 363,
+            "overriden_lines": 0
+          },
+          "tests/oauth.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 332,
+            "overriden_lines": 0
+          },
+          "tests/proposals.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 428,
+            "overriden_lines": 0
+          },
+          "tests/routers.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 372,
+            "overriden_lines": 0
+          },
+          "tests/sync.test.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 530,
+            "overriden_lines": 0
+          },
+          "vite.config.ts": {
+            "total_additions": 0,
+            "total_deletions": 0,
+            "accepted_lines": 62,
+            "overriden_lines": 0
+          }
+        }
+      }
+    }
+  }
+}
