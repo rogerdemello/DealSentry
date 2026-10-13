@@ -1,13 +1,17 @@
 /**
  * Auth middleware helpers for multi-tenant access.
  * Admin (Company A) = role ADMIN, sees all. Other users see only their company's data.
+ *
+ * Two modes (see lib/authConfig.ts):
+ *  - demo  (default): a missing/unusable token is served as the default user.
+ *  - login:           a valid token is required; there is no default identity.
  */
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../../lib/supabase';
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
+import { getJwtSecret, isLoginMode } from '../lib/authConfig';
+import { logger } from '../lib/logger';
 
 export interface AuthUser {
   id: string;
@@ -33,8 +37,8 @@ export function resetDefaultUser(): void {
 }
 
 /**
- * The app has no login screen: requests arrive without a token and are served as
- * a single default identity. Preference order: DEMO_USER_EMAIL, then any ADMIN
+ * Demo mode has no login screen: requests arrive without a token and are served
+ * as a single default identity. Preference order: DEMO_USER_EMAIL, then any ADMIN
  * (sees all companies), then the first user in the table.
  */
 async function resolveDefaultUser(): Promise<{ user: AuthUser | null; dbError: string | null }> {
@@ -62,7 +66,7 @@ async function resolveDefaultUser(): Promise<{ user: AuthUser | null; dbError: s
 
     if (error) {
       dbError = error.message;
-      console.error('Default user lookup failed:', error.message);
+      logger.error('Default user lookup failed:', error.message);
       continue;
     }
 
@@ -81,23 +85,40 @@ async function resolveDefaultUser(): Promise<{ user: AuthUser | null; dbError: s
   return { user: null, dbError };
 }
 
-/** Resolve the user a bearer token points at, or null if the token is unusable. */
-async function userFromToken(token: string): Promise<AuthUser | null> {
-  let decoded: { userId: string };
+/**
+ * Resolve the user a session token points at. `user` is null when the token is
+ * unusable (bad signature, expired, unknown user, or not a session token at all);
+ * `dbError` is set only when the token itself was fine but the database could not
+ * be reached.
+ */
+async function userFromToken(token: string): Promise<{ user: AuthUser | null; dbError: string | null }> {
+  let decoded: { userId?: unknown };
   try {
-    decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    decoded = jwt.verify(token, getJwtSecret()) as { userId?: unknown };
   } catch (err) {
-    console.warn('Ignoring unusable token:', (err as Error).message);
-    return null;
+    logger.warn('Ignoring unusable token:', (err as Error).message);
+    return { user: null, dbError: null };
   }
 
+  // OAuth start/state tokens are signed with the same secret but carry no userId;
+  // they must never be accepted as a session.
+  if (typeof decoded.userId !== 'string' || !decoded.userId) {
+    logger.warn('Ignoring token that is not a session token');
+    return { user: null, dbError: null };
+  }
+
+  return loadUserById(decoded.userId);
+}
+
+/** Load a user row by id as an AuthUser. See userFromToken for the result shape. */
+export async function loadUserById(id: string): Promise<{ user: AuthUser | null; dbError: string | null }> {
   // select('*') so missing columns (e.g. company_id) don't cause the query to fail.
-  // Rejections are folded into `error` so an unreachable DB falls through to the
-  // default-user path (and its clearer 503) rather than throwing.
+  // Rejections are folded into `error` so an unreachable DB is reported cleanly
+  // (demo mode then falls through to the default user, login mode to a 503).
   const { data: user, error } = await supabase
     .from('User')
     .select('*')
-    .eq('id', decoded.userId)
+    .eq('id', id)
     .single()
     .then(
       (r) => r,
@@ -105,27 +126,31 @@ async function userFromToken(token: string): Promise<AuthUser | null> {
     );
 
   if (error || !user) {
-    console.warn('Token user lookup failed:', error?.message || 'no user');
-    return null;
+    logger.warn('Token user lookup failed:', error?.message || 'no user');
+    // PostgREST's "no rows" is a missing user (PGRST116); anything else is the database failing.
+    const missing = !user && (!error || (error as { code?: string }).code === 'PGRST116');
+    return { user: null, dbError: missing ? null : error?.message ?? null };
   }
 
   const u = user as { id: string; email: string; role: string; company_id?: string };
-  return { id: u.id, email: u.email, role: u.role, companyId: u.company_id ?? null };
+  return { user: { id: u.id, email: u.email, role: u.role, companyId: u.company_id ?? null }, dbError: null };
 }
 
 /**
  * Resolve who a request is acting as.
  *
- * Login was removed from the product, so a missing, expired, or otherwise
- * unusable token is not an error — the caller is served as the default user
- * (see resolveDefaultUser). A valid token still wins, so any session issued
- * before login was removed keeps its own identity.
+ * Demo mode: a missing, expired, or otherwise unusable token is not an error —
+ * the caller is served as the default user (see resolveDefaultUser). A valid
+ * token still wins, so a real session keeps its own identity.
+ *
+ * Login mode: only a valid token resolves; there is no fallback identity.
  */
 export async function resolveSessionUser(
   token?: string
 ): Promise<{ user: AuthUser | null; dbError: string | null }> {
-  const tokenUser = token ? await userFromToken(token) : null;
-  if (tokenUser) return { user: tokenUser, dbError: null };
+  const fromToken = token ? await userFromToken(token) : { user: null, dbError: null };
+  if (fromToken.user) return fromToken;
+  if (isLoginMode()) return fromToken;
   return resolveDefaultUser();
 }
 
@@ -143,6 +168,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const { user, dbError } = await resolveSessionUser(token);
 
     if (!user) {
+      if (isLoginMode() && !dbError) {
+        res.status(401).json({ error: 'Authentication required', code: 'AUTH_REQUIRED' });
+        return;
+      }
       res.status(503).json({ error: noSessionUserMessage(dbError), code: 'NO_SESSION_USER' });
       return;
     }
@@ -150,7 +179,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     req.user = user;
     next();
   } catch (err) {
-    console.error('Auth middleware error:', err);
+    logger.error('Auth middleware error:', err);
     res.status(500).json({ error: 'Failed to resolve session' });
   }
 }
@@ -165,4 +194,36 @@ export function canAccessCompany(companyId: string | null, req: Request): boolea
   if (isAdmin(req)) return true;
   if (companyId == null) return true; // backward compat: no company = allow
   return req.user?.companyId === companyId;
+}
+
+/**
+ * Stricter per-resource check that also considers ownership.
+ *
+ * A resource that belongs to a company is visible to that company's members (and
+ * admins). A resource with no company is legacy single-tenant data: open to
+ * everyone in demo mode (every visitor is the admin anyway), but in login mode
+ * visible only to its owner — otherwise any signed-in user could read it by id.
+ */
+export function canAccessResource(
+  resource: { companyId?: string | null; ownerId?: string | null },
+  req: Request
+): boolean {
+  if (isAdmin(req)) return true;
+  const companyId = resource.companyId ?? null;
+  if (companyId !== null) return req.user?.companyId === companyId;
+  if (!isLoginMode()) return true;
+  return resource.ownerId != null && resource.ownerId === req.user?.id;
+}
+
+/**
+ * How a non-admin's list queries must be narrowed: to their company, or — in
+ * login mode, when they have no company — to rows they own. Returns null when no
+ * narrowing applies (admins, and legacy demo behaviour).
+ */
+export function listScope(req: Request): { column: 'company_id' | 'userId'; value: string } | null {
+  if (isAdmin(req)) return null;
+  const user = req.user;
+  if (user?.companyId) return { column: 'company_id', value: user.companyId };
+  if (isLoginMode() && user) return { column: 'userId', value: user.id };
+  return null;
 }
