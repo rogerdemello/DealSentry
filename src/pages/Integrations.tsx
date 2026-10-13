@@ -6,7 +6,7 @@ import { mockIntegrations } from "@/data/mockData";
 import { Integration } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useProposals } from "@/context/useProposals";
-import { getApiBaseUrl } from "@/lib/api-client";
+import { authFetch, getApiBaseUrl, oauthApi } from "@/lib/api-client";
 import { formatDistanceToNowIST } from "@/lib/utils";
 
 const integrationConfig = {
@@ -28,6 +28,13 @@ const integrationConfig = {
     description: "Sync deals and contacts",
     features: ["Auto-sync deals", "Contact management", "Activity tracking"],
   },
+};
+
+/** An integration as returned by GET /api/integrations (credentials are redacted). */
+type ApiIntegration = Omit<Integration, 'credentials' | 'config'> & {
+  credentials?: Record<string, unknown> | null;
+  config?: Record<string, unknown> | null;
+  hasCredentials?: boolean;
 };
 
 // Load integration status from localStorage
@@ -59,17 +66,15 @@ export default function Integrations() {
   // Fetch integrations from API
   const fetchIntegrations = async () => {
     try {
-      const base = getApiBaseUrl();
-      const token = localStorage.getItem('auth_token');
-      const res = await fetch(`${base}/api/integrations`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await authFetch('/api/integrations');
       if (!res.ok) throw new Error('Failed to load integrations');
-      const data = await res.json();
+      const data = (await res.json()) as ApiIntegration[];
 
-      // Map DB records to UI shape - use database as source of truth
-      const dbIntegrations = data.map((d: any) => {
-        const hasCredentials = d.credentials && typeof d.credentials === 'object' && Object.keys(d.credentials).length > 0;
+      // Map DB records to UI shape - use database as source of truth. The server
+      // never sends the stored OAuth tokens, only whether credentials exist.
+      const dbIntegrations = data.map((d) => {
+        const hasCredentials =
+          d.hasCredentials ?? (!!d.credentials && typeof d.credentials === 'object' && Object.keys(d.credentials).length > 0);
         const isActive = d.isActive && hasCredentials;
         
         return {
@@ -153,11 +158,17 @@ export default function Integrations() {
           ? 'Authorization was cancelled or no code was returned.'
           : error === 'token_exchange_failed'
             ? 'Could not get access token. Check redirect URI and app credentials.'
-            : error === 'hubspot_save_failed'
+            : error === 'hubspot_save_failed' || error === 'integration_save_failed'
               ? 'Connected but failed to save. Try again or check the Integration table has required columns.'
               : error === 'no_client_id'
                 ? 'HubSpot client ID is not configured.'
-                : `Error: ${error}`;
+                : error === 'invalid_state'
+                  ? 'The sign-in link expired or was tampered with. Please start the connection again.'
+                  : error === 'unauthorized' || error === 'not_authenticated'
+                    ? 'Your session expired. Please sign in and try again.'
+                    : error === 'forbidden'
+                      ? 'Only administrators can connect this integration.'
+                      : `Error: ${error}`;
       toast({
         title: "Connection failed",
         description: message,
@@ -200,13 +211,24 @@ export default function Integrations() {
 
     const base = getApiBaseUrl();
     const url = oauthUrls[integration.type];
-    if (url) {
-      // Top-level navigation, so no Authorization header — the server resolves
-      // the acting user itself now that there is no sign-in step.
-      window.location.href = `${base}${url}`;
-    } else {
+    if (!url) {
       setConnecting(null);
+      return;
     }
+
+    // The redirect is a top-level navigation, which cannot carry an Authorization
+    // header. Ask the API (which can verify our session) for a two-minute,
+    // single-purpose token to put in the URL instead of the session token itself.
+    // Servers without sign-in (demo mode) resolve the user themselves, so if the
+    // request fails for any other reason we still proceed.
+    let query = '';
+    try {
+      const { token } = await oauthApi.startToken();
+      query = `?token=${encodeURIComponent(token)}`;
+    } catch (err) {
+      console.warn('Could not get an OAuth start token:', err);
+    }
+    window.location.href = `${base}${url}${query}`;
   };
 
   const handleDisconnect = (integration: Integration) => {
@@ -221,14 +243,9 @@ export default function Integrations() {
     // Update server-side Integration record
     (async () => {
       try {
-        const base = getApiBaseUrl();
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`${base}/api/integrations/${integration.id}`, {
+        const res = await authFetch(`/api/integrations/${integration.id}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isActive: false, credentials: {} }),
         });
         if (!res.ok) throw new Error('Failed to disconnect');
@@ -249,43 +266,27 @@ export default function Integrations() {
     setSyncing(integration.id);
 
     try {
-      const base = getApiBaseUrl();
-      const token = localStorage.getItem('auth_token');
-      const res = await fetch(`${base}/api/integrations/${integration.id}/sync`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      
+      const res = await authFetch(`/api/integrations/${integration.id}/sync`, { method: 'POST' });
+
       const result = await res.json();
-      
+
       if (!res.ok) {
-        // If sync failed due to missing credentials, mark integration as inactive
-        if (result.error?.includes('No access token') || result.error?.includes('expired') || result.error?.includes('revoked')) {
+        // The server switches a revoked/expired connection off itself and says so
+        // with needsReconnect; mirror that in the UI so the card offers "Connect".
+        if (result.needsReconnect) {
           setIntegrations(integrations.map((i) =>
             i.id === integration.id
               ? { ...i, isActive: false, lastSyncAt: null }
               : i
           ));
-          
-          // Update localStorage
+
           const status = loadIntegrationStatus();
           status[integration.type] = false;
           saveIntegrationStatus(status);
-          
-          // Update database
-          try {
-            await fetch(`${base}/api/integrations/${integration.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ isActive: false }),
-            });
-          } catch (updateErr) {
-            console.error('Failed to update integration status:', updateErr);
-          }
-          
+
           toast({
             title: "Sync failed - Reconnection required",
-            description: result.error || "Please reconnect Gmail in Integrations.",
+            description: result.error || `Please reconnect ${integration.name} in Integrations.`,
             variant: "destructive",
           });
           return;
