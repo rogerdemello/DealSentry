@@ -30,19 +30,16 @@ npm run dev
 
 The app will open at `http://localhost:5173`
 
-### 3. Login
+### 3. Open the app
 
-**Demo Accounts Available:**
+By default (`AUTH_MODE=demo`) there is **no sign-in**: every visitor is served as the default user —
+`DEMO_USER_EMAIL`, else the first admin (the seed creates `admin@dealsentry.ai`). Nothing to type.
 
-- **Admin User**
-  - Email: `admin@dealsentry.ai`
-  - Password: `demo`
-  - Access: Full system access, audit logs, user management
+For a real multi-user setup with email + password sign-in, see
+[docs/AUTH_QUICKSTART.md](docs/AUTH_QUICKSTART.md) (`AUTH_MODE=login`, then `npm run set-passwords`).
 
-- **Test Users** (5 users)
-  - Emails: `test1@dealsentry.ai` through `test5@dealsentry.ai`
-  - Password: `demo` (for all test users)
-  - Access: Create proposals, review, integrations
+The seed also creates `test1@dealsentry.ai` … `test5@dealsentry.ai`. They have no passwords until you run
+`npm run set-passwords`.
 
 ---
 
@@ -52,7 +49,7 @@ The app will open at `http://localhost:5173`
 
 1. **Proposal Management**
    - Create, upload, and review proposals
-   - AI-powered risk analysis with Azure OpenAI
+   - AI-powered risk analysis (Gemini or Azure OpenAI), with a built-in rule checker as a fallback
    - Contract renewal tracking
 
 2. **Compliance Engine**
@@ -106,13 +103,15 @@ DATABASE_URL="postgresql://..."
 SUPABASE_URL="https://..."
 SUPABASE_ANON_KEY="..."
 
-# Azure OpenAI (for AI risk analysis)
-AZURE_OPENAI_ENDPOINT="https://..."
-OPENAI_API_KEY="..."
-AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+# AI provider (pick one). Without either, analysis falls back to the built-in rule checker.
+GEMINI_API_KEY="..."                      # Google Gemini (default model gemini-2.5-flash)
+# AZURE_OPENAI_ENDPOINT="https://..."     # ...or Azure OpenAI
+# OPENAI_API_KEY="..."
+# AZURE_OPENAI_DEPLOYMENT="gpt-4o"
 
 # Authentication
 NEXTAUTH_SECRET="..." # JWT secret key
+# AUTH_MODE="login"   # default "demo" = no sign-in; see docs/AUTH_QUICKSTART.md
 
 # Integrations (Demo Mode Enabled)
 SALESFORCE_DEMO_MODE="true"
@@ -122,12 +121,16 @@ GMAIL_DEMO_MODE="false"
 
 ### Supabase Storage Setup
 
-**Required**: Create a storage bucket named `proposal-files`
+**Optional** — only the `/api/files/*` endpoints use storage (the proposal pages work without it).
 
-1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Navigate to Storage
-3. Create new bucket: `proposal-files`
-4. Set to **Public** (for file URLs)
+Create the `proposal-files` bucket by running the SQL (it also adds the policies the API needs):
+
+```bash
+npx prisma db execute --file prisma/manual/storage_bucket.sql
+```
+
+Uploads return a time-limited signed link, so the bucket does not need to be public. If you later enable Row Level
+Security (`prisma/manual/enable_rls.sql`) the bucket is made private and the API reaches it with the service-role key.
 
 ---
 
@@ -193,7 +196,9 @@ The application automatically restricts CORS based on environment:
 - [ ] Set `PRODUCTION_URL` to your domain
 - [ ] Change `NEXTAUTH_SECRET` to a strong random string
 - [ ] Configure production database
-- [ ] Set up Azure OpenAI credentials
+- [ ] Configure an AI provider (`GEMINI_API_KEY` or the Azure OpenAI variables) — analysis still works without one, via the rule checker
+- [ ] Decide on `AUTH_MODE` (`demo` for a single shared user, `login` for real accounts)
+- [ ] Set `SUPABASE_SERVICE_ROLE_KEY`, then enable Row Level Security (`prisma/manual/enable_rls.sql`)
 - [ ] Configure real OAuth credentials (if using integrations)
 - [ ] Test CORS is working correctly
 
