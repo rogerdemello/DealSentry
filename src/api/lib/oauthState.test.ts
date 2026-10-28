@@ -33,7 +33,8 @@ describe('OAuth state', () => {
 
   it('rejects the old raw-user-id state, which anyone could forge', () => {
     expect(verifyOAuthState('user-1')).toBeNull();
-    expect(verifyOAuthState('9c6ca796-855a-4118-ac3c-774202eb3afb')).toBeNull();
+    // Real user ids are UUIDs; the old state was exactly that, unsigned.
+    expect(verifyOAuthState('00000000-0000-4000-8000-000000000001')).toBeNull();
   });
 
   it('rejects a tampered token', () => {
