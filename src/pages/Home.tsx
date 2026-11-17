@@ -137,10 +137,10 @@ export default function Home() {
             className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mt-16"
           >
             {[
-              { value: "10x", label: "Faster Reviews" },
-              { value: "99.9%", label: "Accuracy" },
-              { value: "24/7", label: "Available" },
-              { value: "1000+", label: "Proposals" },
+              { value: "18", label: "Compliance rules" },
+              { value: "3", label: "Rule groups" },
+              { value: "RBAC", label: "Role-based access" },
+              { value: "Audit", label: "Logging on every action" },
             ].map((stat, index) => (
               <motion.div
                 key={index}
