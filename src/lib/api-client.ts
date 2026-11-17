@@ -118,6 +118,29 @@ const RETRY_CONFIG = {
 // Helper function to wait/delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * The database returns timestamps without a timezone suffix (for example
+ * "2026-11-17T12:00:11.616"). Browsers read those as local time, so a proposal
+ * created a minute ago showed as "about 6 hours ago" in India. Treat them as UTC.
+ */
+const NAIVE_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/;
+function normalizeTimestamps<T>(value: T): T {
+  if (typeof value === 'string') {
+    return (NAIVE_TIMESTAMP.test(value) ? `${value}Z` : value) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeTimestamps(item)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = normalizeTimestamps(item);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 /** The server said a sign-in is required (login mode): drop the dead session and tell the UI. */
 function handleAuthRequired(): void {
   clearAuthData();
@@ -221,7 +244,7 @@ async function apiCall<T>(
     );
   }
 
-  return response.json();
+  return normalizeTimestamps(await response.json()) as T;
 }
 
 /** 'ai' = produced by the model; 'rules' = the built-in checker (AI unavailable). */
