@@ -137,8 +137,8 @@ export default function Home() {
             className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mt-16"
           >
             {[
-              { value: "18", label: "Compliance rules" },
-              { value: "3", label: "Rule groups" },
+              { value: "Rules", label: "Configurable compliance checks" },
+              { value: "AI", label: "With a built-in rule-checker fallback" },
               { value: "RBAC", label: "Role-based access" },
               { value: "Audit", label: "Logging on every action" },
             ].map((stat, index) => (
